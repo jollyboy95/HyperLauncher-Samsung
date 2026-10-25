@@ -1,6 +1,7 @@
 name: Build compatibility prototype
 on:
   push:
+    branches: [main]
     paths: ['compat/**', '*.gradle', 'gradle.properties', '.github/workflows/compat.yml']
   pull_request:
   workflow_dispatch:
@@ -17,11 +18,12 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+          log-accepted-android-sdk-licenses: false
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.11.1'
-      - name: Install Android platform
-        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
       - name: Test, lint and build
         run: gradle --no-daemon :compat:testDebugUnitTest :compat:lintDebug :compat:assembleDebug
       - uses: actions/upload-artifact@v4
