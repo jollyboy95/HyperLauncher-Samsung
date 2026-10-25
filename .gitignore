@@ -1,0 +1,9 @@
+/.gradle/
+/local.properties
+**/build/
+/work/
+/donors/
+*.apk
+*.so
+*.jks
+__pycache__/

@@ -1,0 +1,14 @@
+plugins { id 'com.android.application' }
+android {
+    namespace 'au.steve.hyperlauncher.compat'
+    compileSdk 35
+    defaultConfig {
+        applicationId 'au.steve.hyperlauncher.compat'
+        minSdk 28
+        targetSdk 35
+        versionCode 1
+        versionName '0.1.0-preflight'
+    }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+}
+dependencies { testImplementation 'junit:junit:4.13.2' }
