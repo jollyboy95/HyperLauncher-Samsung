@@ -60,6 +60,23 @@ def prepare(dest):
     ]:
         patch(prefs, old, new)
     prefs.write_text('// Modified for HyperLauncher: grid, dock and app-drawer defaults.\n' + prefs.read_text())
+    activity = dest / 'lawnchair/src/app/lawnchair/ui/preferences/PreferenceActivity.kt'
+    patch(activity, '        enableEdgeToEdge()', """        // HyperLauncher: custom hub for the normal settings entry; retain all deep links.
+        if (!intent.hasExtra(EXTRA_DESTINATION_ROUTE)) {
+            startActivity(Intent(this, au.steve.hyperlauncher.settings.HyperSettingsActivity::class.java))
+            finish()
+            return
+        }
+        enableEdgeToEdge()""")
+    workspace = dest / 'lawnchair/res/xml/default_workspace_5x6.xml'
+    # A fresh-install Samsung-friendly preset. Existing databases are never reset.
+    import re
+    layout = workspace.read_text()
+    layout = re.sub(r'    <resolve\n        launcher:container="-101"\n        launcher:screen="2".*?</resolve>\n', '', layout, count=1, flags=re.S)
+    layout = layout.replace('launcher:screen="3"\n        launcher:x="3"', 'launcher:screen="2"\n        launcher:x="2"')
+    layout = layout.replace('launcher:screen="4"\n        launcher:x="4"', 'launcher:screen="3"\n        launcher:x="3"')
+    layout = layout.replace('    <!-- Screen 0 -->', '    <!-- Modified for HyperLauncher: four-app dock; open upper rows for clock widgets. -->\n    <!-- Screen 0 -->')
+    workspace.write_text(layout)
     settings = dest / 'settings.gradle'
     # Do not publish upstream's automatic build scans for this private project.
     patch(settings, 'plugins {\n    id "com.gradle.develocity" version "4.3.1"\n}', '// HyperLauncher: upstream build-scan plugin removed.')

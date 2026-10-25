@@ -36,3 +36,7 @@ Toolchain: JDK 21, upstream Gradle wrapper, Android platform 36.1 and build tool
 ## Phone validation after a successful build
 
 Keep Nova installed. Open HyperLauncher Preview and choose it as Home only when ready. Test app launch/drawer, create a folder, add a standard widget requiring configuration, resize it, and verify it survives restarting the launcher. Add Hyper Clock and Hyper Battery from the widget picker. Test gesture navigation through Samsung's Recents. A failed flow should include its exact action and screenshot or logcat.
+
+## Home screen and settings follow-up
+
+The normal settings entry opens an original Xiaomi-inspired card hub. Every row links to a functioning Lawnchair preference destination; deeper preference pages retain their existing design. Fresh 5x6 layouts use a four-app dock (dialer, messaging, browser, camera) and reserve the upper rows for manually added widgets. Existing home databases are preserved. This does not yet supply the Xiaomi stock icon pack, wallpaper, weather service, or automatic clock placement. Clock and battery card backgrounds now have compact heights instead of stretching to the full host allocation. The battery remains a snapshot.
