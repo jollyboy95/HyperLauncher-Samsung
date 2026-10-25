@@ -68,6 +68,9 @@ def prepare(dest):
             return
         }
         enableEdgeToEdge()""")
+    controller = dest / 'src/com/android/launcher3/model/ModelDbController.java'
+    patch(controller, ': idp.defaultLayoutId;', ': ((idp.numColumns == 5 && idp.numRows == 6)\n                                ? com.android.launcher3.R.xml.default_workspace_5x6 : idp.defaultLayoutId);')
+    controller.write_text('// Modified for HyperLauncher: select the fresh 5x6 preset explicitly.\n' + controller.read_text())
     workspace = dest / 'lawnchair/res/xml/default_workspace_5x6.xml'
     # A fresh-install Samsung-friendly preset. Existing databases are never reset.
     import re
