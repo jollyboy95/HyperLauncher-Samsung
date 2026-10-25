@@ -35,6 +35,9 @@ def prepare(dest):
             res.srcDirs = ['hyperlauncher/res']''')
     patch(gradle, '"Lawnchair.${variant.versionName}.$channel.${variant.buildType.name}.apk"', '"HyperLauncher.Preview.${variant.versionName}.$channel.${variant.buildType.name}.apk"')
     gradle.write_text('// Modified for HyperLauncher: identity and channel source overlay.\n' + gradle.read_text())
+    common = dest / 'AndroidManifest-common.xml'
+    patch(common, 'android:icon="@drawable/ic_launcher_home"', 'android:icon="@drawable/hyper_launcher_icon"')
+    patch(common, '<manifest', '<!-- Modified for HyperLauncher: shared app icon. -->\n<manifest')
     config = dest / 'lawnchair/res/values/config.xml'
     for name, before, after in [
         ('config_default_icon_shape', 'system', 'squircle'),

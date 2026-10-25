@@ -41,8 +41,13 @@ jobs:
           packages: 'platform-tools platforms;android-36.1 build-tools;36.1.0'
           log-accepted-android-sdk-licenses: false
       - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
       - name: Apply HyperLauncher source changes
         run: python scripts/prepare_launcher.py work/launcher
+      - name: Validate merged launcher manifest
+        working-directory: work/launcher
+        run: ./gradlew --no-daemon processLawnWithQuickstepGithubDebugMainManifest
       - name: Build launcher APK
         working-directory: work/launcher
         run: ./gradlew --no-daemon assembleLawnWithQuickstepGithubDebug

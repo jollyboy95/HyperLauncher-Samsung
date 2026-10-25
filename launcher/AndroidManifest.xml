@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- HyperLauncher channel overlay. SPDX-License-Identifier: Apache-2.0 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
-    <application android:icon="@drawable/hyper_launcher_icon" tools:replace="android:icon">
+    <application>
         <receiver android:name="au.steve.hyperlauncher.widgets.HyperClockWidget" android:exported="false" android:label="@string/hyper_clock_name">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/hyper_clock_info" />
