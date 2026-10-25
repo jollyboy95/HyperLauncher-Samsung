@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Original HyperLauncher widget. SPDX-License-Identifier: Apache-2.0 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/hyper_clock_root" android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:gravity="center_vertical" android:padding="20dp"
+    android:background="@drawable/hyper_widget_background">
+    <TextClock android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:format12Hour="h:mm" android:format24Hour="HH:mm" android:textSize="56sp"
+        android:fontFamily="sans-serif-light" android:textColor="#FFFFFFFF" android:maxLines="1" />
+    <TextClock android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:format12Hour="EEE, d MMM" android:format24Hour="EEE, d MMM"
+        android:textSize="15sp" android:textColor="#FFCAD2E0" android:maxLines="1" />
+</LinearLayout>

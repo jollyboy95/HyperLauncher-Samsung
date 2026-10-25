@@ -1,0 +1,10 @@
+<resources>
+    <string name="hyper_clock_name">Hyper Clock</string>
+    <string name="hyper_clock_description">Clock and date. Tap to open alarms.</string>
+    <string name="hyper_battery_name">Hyper Battery</string>
+    <string name="hyper_battery_description">Battery snapshot, refreshed periodically and when power is connected.</string>
+    <string name="hyper_battery_title">BATTERY</string>
+    <string name="hyper_battery_percent_format">%1$d%%</string>
+    <string name="hyper_charging">Charging</string>
+    <string name="hyper_battery_snapshot">Battery snapshot</string>
+</resources>

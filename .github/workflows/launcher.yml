@@ -1,0 +1,60 @@
+name: Build HyperLauncher
+on:
+  push:
+    branches: [main]
+    paths: ['launcher/**', 'scripts/prepare_launcher.py', '.github/workflows/launcher.yml']
+  pull_request:
+    paths: ['launcher/**', 'scripts/prepare_launcher.py', '.github/workflows/launcher.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  launcher:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read upstream lock
+        id: lock
+        run: |
+          python - <<'PY'
+          import json, os
+          with open('launcher/upstream.json') as f:
+              lock = json.load(f)
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write('commit=' + lock['commit'] + '\n')
+          PY
+      - name: Check out pinned launcher source
+        uses: actions/checkout@v4
+        with:
+          repository: LawnchairLauncher/lawnchair
+          ref: ${{ steps.lock.outputs.commit }}
+          submodules: recursive
+          path: work/launcher
+          persist-credentials: false
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-36.1 build-tools;36.1.0'
+          log-accepted-android-sdk-licenses: false
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Apply HyperLauncher source changes
+        run: python scripts/prepare_launcher.py work/launcher
+      - name: Build launcher APK
+        working-directory: work/launcher
+        run: ./gradlew --no-daemon assembleLawnWithQuickstepGithubDebug
+      - name: Upload launcher APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: HyperLauncher-preview
+          path: work/launcher/build/outputs/apk/lawnWithQuickstepGithub/debug/*.apk
+          if-no-files-found: error
+      - name: Upload build reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: HyperLauncher-build-reports
+          path: work/launcher/build/reports/
