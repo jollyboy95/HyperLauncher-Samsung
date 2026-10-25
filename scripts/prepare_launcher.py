@@ -38,6 +38,10 @@ def prepare(dest):
     common = dest / 'AndroidManifest-common.xml'
     patch(common, 'android:icon="@drawable/ic_launcher_home"', 'android:icon="@drawable/hyper_launcher_icon"')
     patch(common, '<manifest', '<!-- Modified for HyperLauncher: shared app icon. -->\n<manifest')
+    entry_manifest = dest / 'quickstep/AndroidManifest-launcher.xml'
+    patch(entry_manifest, 'android:icon="@drawable/ic_launcher_home"',
+          'android:icon="@drawable/hyper_launcher_icon" tools:replace="android:icon"')
+    patch(entry_manifest, '<manifest', '<!-- Modified for HyperLauncher: highest-priority app icon override. -->\n<manifest')
     config = dest / 'lawnchair/res/values/config.xml'
     for name, before, after in [
         ('config_default_icon_shape', 'system', 'squircle'),
