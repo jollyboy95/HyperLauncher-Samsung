@@ -1,0 +1,8 @@
+{
+  "repository": "https://github.com/LawnchairLauncher/lawnchair.git",
+  "commit": "505dbc40e6154c05158b5d0271c45f6a885a411b",
+  "branch_reference": "15-dev",
+  "systemui_submodule": "6a11ef767998885838a599331b5485f768b3d725",
+  "application_id": "au.steve.hyperlauncher",
+  "build_task": "assembleLawnWithQuickstepGithubDebug"
+}
