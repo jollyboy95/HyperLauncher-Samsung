@@ -82,7 +82,6 @@ public final class AuroraActivity extends Activity {
         String cutout = prefs.getString("foreground", null);
         if (cutout != null) try { foreground.setImageURI(Uri.parse(cutout)); } catch (Exception ignored) {}
         // Overlay above clock; foreground must be a transparent PNG to create a depth illusion.
-        root.addView(foreground, fgParams);
         View space = new View(this);
         content.addView(space, new LinearLayout.LayoutParams(1, 0, 1));
         Button choose = new Button(this);
@@ -127,6 +126,7 @@ public final class AuroraActivity extends Activity {
         note.setGravity(Gravity.CENTER);
         content.addView(note);
         root.addView(content, new FrameLayout.LayoutParams(-1, -1));
+        root.addView(foreground, fgParams);
         setContentView(root);
     }
     private void requestSecureUnlock() {
