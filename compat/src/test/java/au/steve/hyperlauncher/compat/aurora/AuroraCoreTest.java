@@ -27,6 +27,13 @@ public class AuroraCoreTest {
         assertTrue(layout.horizontalScale < 0.8f);
     }
 
+    @Test public void referenceStackLeavesMinutesVisibleAbovePortraitSubject() {
+        ClockLayout layout = ClockLayout.compute(0, 592, 1280, 168, 0, .48f, .35f, .9f, .9f, 2f);
+        assertTrue(layout.dateY >= 1280 * .05f);
+        assertTrue(layout.firstBaseline + layout.lineHeight < 1280 * .52f);
+        assertTrue(layout.verticalScale > 1.3f);
+    }
+
     @Test public void wallpaperCoverKeepsFocus() {
         WallpaperTransform t = WallpaperTransform.compute(4000, 3000, 1440, 3120, 1.1f, 0.5f, 0.42f);
         assertTrue(t.scale > 0);

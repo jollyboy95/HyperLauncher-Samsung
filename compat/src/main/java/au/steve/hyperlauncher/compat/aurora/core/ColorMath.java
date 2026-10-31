@@ -16,7 +16,7 @@ public final class ColorMath {
         for(int i=0;i<36;i++){float v=bins[i]+.5f*(bins[(i+35)%36]+bins[(i+1)%36]);if(v>high){high=v;best=i;}}
         float avg=sum/pixels.length;
         if(weight/pixels.length<.025f)return avg>.7f?0xFF3C4149:0xFFE9ECF2;
-        return fromHsl(best*10+5,.24f,avg>.72f?.25f:.83f);
+        return fromHsl(best*10+5,.46f,avg>.72f?.25f:.70f);
     }
     private static float[] toHsl(int r,int g,int b){
         float a=r/255f,c=g/255f,d=b/255f,max=Math.max(a,Math.max(c,d)),min=Math.min(a,Math.min(c,d)),delta=max-min;

@@ -7,6 +7,8 @@ import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.LinearGradient;
 import android.graphics.Paint;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffXfermode;
 import android.graphics.RadialGradient;
 import android.graphics.RectF;
 import android.graphics.Shader;
@@ -160,7 +162,8 @@ public final class AuroraSceneView extends View {
 
     private int clockColour() {
         int manual = config.clockColor();
-        if (!config.autoClockColor() || background == null) return manual;
+        int alpha = Math.round(config.clockOpacity() * 255f);
+        if (!config.autoClockColor() || background == null) return (alpha << 24) | (manual & 0x00FFFFFF);
         int w = background.getWidth();
         int h = background.getHeight();
         int[] samples = new int[144];
@@ -179,9 +182,9 @@ public final class AuroraSceneView extends View {
     private Typeface clockFace() {
         int style = config.clockStyle();
         float weight = config.clockWeight();
-        String family = style == 1 ? "sans-serif-thin" : style == 2 ? "sans-serif-light" : "sans-serif-condensed-light";
-        int androidWeight = weight > 0.66f ? Typeface.BOLD : Typeface.NORMAL;
-        return Typeface.create(family, androidWeight);
+        String family = style == 2 ? "serif" : "sans-serif-condensed";
+        int androidWeight = Math.round((style == 1 ? 100f : 180f) + weight * 320f);
+        return Typeface.create(Typeface.create(family, Typeface.NORMAL), androidWeight, false);
     }
 
     private void text(Canvas c, String s, float x, float baseline, float size, int color, Typeface face, boolean center, float tracking) {
@@ -218,22 +221,25 @@ public final class AuroraSceneView extends View {
         c.drawRect(0, 0, width, height, paint);
         paint.setShader(null);
 
+        // Only the text is masked: the wallpaper keeps the same lighting across crop edges.
+        int clockLayer = c.saveLayer(0, 0, width, height, null);
         Date now = new Date();
-        String date = new SimpleDateFormat("EEEE  ·  d MMMM", Locale.getDefault()).format(now).toUpperCase(Locale.getDefault());
+        String date = new SimpleDateFormat("EEE, d MMM", Locale.getDefault()).format(now).toUpperCase(Locale.getDefault());
         String digits = new SimpleDateFormat(config.clock12() ? "hhmm" : "HHmm", Locale.getDefault()).format(now);
         String hours = digits.substring(0, 2);
         String minutes = digits.substring(2);
         Typeface face = clockFace();
         Typeface dateFace = Typeface.create("sans-serif-medium", Typeface.NORMAL);
         measure.setTypeface(face);
-        measure.setTextSize(1f);
+        measure.setTextSize(100f);
         measure.setLetterSpacing(-0.07f);
         ClockLayout layout = ClockLayout.compute(config.clockPreset(), width, height, config.clockSize(),
                 config.clockY(), config.clockWidth(), config.clockSpacing(),
-                measure.measureText(hours), measure.measureText(minutes), measure.measureText(hours + ":" + minutes));
+                measure.measureText(hours) / 100f, measure.measureText(minutes) / 100f,
+                measure.measureText(config.clockPreset() == 3 ? digits : hours + ":" + minutes) / 100f);
         int color = clockColour();
-        int dateColor = (Math.round(config.clockOpacity() * 210) << 24) | 0x00E8F1FF;
-        text(c, date, layout.dateX, layout.dateY, Math.max(11f, height * 0.016f), dateColor, dateFace, true, 0.28f);
+        int dateColor = (Math.round(Math.max(.72f, config.clockOpacity()) * 255) << 24) | (color & 0x00FFFFFF);
+        text(c, date, layout.dateX, layout.dateY, Math.max(11f, height * 0.012f), dateColor, dateFace, true, 0.14f);
 
         c.save();
         c.translate(layout.clockX, 0);
@@ -248,6 +254,19 @@ public final class AuroraSceneView extends View {
         }
         c.restore();
 
+        if (foreground != null) {
+            paint.reset();
+            paint.setAntiAlias(true);
+            paint.setFilterBitmap(true);
+            paint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_OUT));
+            WallpaperTransform t = WallpaperTransform.compute(foreground.getWidth(), foreground.getHeight(), width, height,
+                    config.wallpaperZoom(), config.wallpaperFocusX(), config.wallpaperFocusY());
+            c.drawBitmap(foreground, null, new RectF(t.dx, t.dy,
+                    t.dx + foreground.getWidth() * t.scale, t.dy + foreground.getHeight() * t.scale), paint);
+        }
+
+        c.restoreToCount(clockLayer);
+
         if (editing) {
             paint.reset();
             paint.setAntiAlias(true);
@@ -259,16 +278,6 @@ public final class AuroraSceneView extends View {
                     ? (layout.firstBaseline + layout.lineHeight + height * 0.02f)
                     : (layout.firstBaseline + height * 0.02f);
             c.drawRoundRect(new RectF(width * 0.06f, boxTop, width * 0.94f, boxBot), 28, 28, paint);
-        }
-
-        if (foreground != null) {
-            paint.reset();
-            paint.setAntiAlias(true);
-            paint.setFilterBitmap(true);
-            WallpaperTransform t = WallpaperTransform.compute(foreground.getWidth(), foreground.getHeight(), width, height,
-                    config.wallpaperZoom(), config.wallpaperFocusX(), config.wallpaperFocusY());
-            c.drawBitmap(foreground, null, new RectF(t.dx, t.dy,
-                    t.dx + foreground.getWidth() * t.scale, t.dy + foreground.getHeight() * t.scale), paint);
         }
 
         if (!preview) {

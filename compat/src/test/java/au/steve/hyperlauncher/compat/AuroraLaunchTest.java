@@ -49,6 +49,7 @@ public class AuroraLaunchTest {
         Bitmap rendered = Bitmap.createBitmap(200, 400, Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(rendered);
         scene.draw(canvas);
+        Bitmap baselineImage = rendered.copy(Bitmap.Config.ARGB_8888, false);
         int baseline = rendered.getPixel(20, 350);
         config.prefs().edit().putString("autoForeground", oldMask.getAbsolutePath()).commit();
         scene.reload();
@@ -57,12 +58,28 @@ public class AuroraLaunchTest {
         config.prefs().edit().putString("autoForeground", currentMask.getAbsolutePath()).commit();
         scene.reload();
         scene.draw(canvas);
-        assertEquals(Color.RED, rendered.getPixel(20, 350));
+        assertEquals("Depth must not brighten or repaint the wallpaper", baseline, rendered.getPixel(20, 350));
+        assertFalse("Opaque subject must occlude clock text", baselineImage.sameAs(rendered));
         config.prefs().edit().putBoolean("depthEnabled", false).commit();
         scene.reload();
         scene.draw(canvas);
         assertEquals(baseline, rendered.getPixel(20, 350));
+        assertTrue("Disabling depth restores the complete clock", baselineImage.sameAs(rendered));
         config.prefs().edit().clear().commit();
+    }
+
+    @Test public void referenceStyleMigrationPreservesWallpaperAndHourFormat() {
+        Context context = RuntimeEnvironment.getApplication();
+        AuroraConfig before = new AuroraConfig(context);
+        before.prefs().edit().clear().putString("wallpaper", "content://wallpaper/kept")
+                .putBoolean("clock12", true).putInt("clockPreset", 2).commit();
+        AuroraConfig migrated = new AuroraConfig(context);
+        assertEquals("content://wallpaper/kept", migrated.wallpaper());
+        assertTrue(migrated.clock12());
+        assertEquals(0, migrated.clockPreset());
+        assertTrue(migrated.clockOpacity() < .8f);
+        migrated.prefs().edit().putInt("clockPreset", 3).commit();
+        assertEquals("Apply the new defaults only once", 3, new AuroraConfig(context).clockPreset());
     }
 
 }

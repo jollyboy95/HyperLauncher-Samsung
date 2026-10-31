@@ -37,7 +37,7 @@ import org.json.JSONObject;
 public final class AuroraSettingsActivity extends Activity {
     private static final String RELEASE_API = "https://api.github.com/repos/jollyboy95/HyperLauncher-Samsung/releases/latest";
     private static final String RELEASE_PAGE = "https://github.com/jollyboy95/HyperLauncher-Samsung/releases";
-    private static final String[] PRESETS = {"Depth Stack", "Horizon", "Editorial", "Tall Line", "Offset Stack"};
+    private static final String[] PRESETS = {"Depth Stack", "Horizon", "Offset", "Editorial", "Soft Stack"};
     private static final String[] TABS = {"Clock", "Colour", "Depth", "Wallpaper", "Effects"};
     private static final int[] CLOCK_COLOURS = {0xE8F4FBFF, 0xF2FFFFFF, 0xF2F3D5B0, 0xF2F5B6C9, 0xE8C9E4FF};
     private static final String[] COLOUR_NAMES = {"Ice", "Pearl", "Champagne", "Rose", "Lilac"};
@@ -126,7 +126,7 @@ public final class AuroraSettingsActivity extends Activity {
             lp.topMargin = dp(10);
             lp.bottomMargin = dp(10);
             chip.setOnClickListener(v -> {
-                config.prefs().edit().putInt("clockPreset", preset).apply();
+                config.applyPreset(preset);
                 preview.animatePreset(preset);
                 preview.reload();
             });
@@ -185,7 +185,7 @@ public final class AuroraSettingsActivity extends Activity {
             config.prefs().edit().putBoolean("clock12", c).apply();
             preview.reload();
         }));
-        String[] styles = {"Condensed Light", "Hairline", "Editorial Light"};
+        String[] styles = {"Tall Sans", "Hairline", "Editorial Serif"};
         sheet.addView(choiceRow("Typeface", styles, config.clockStyle(), i -> {
             config.prefs().edit().putInt("clockStyle", i).apply();
             preview.reload();

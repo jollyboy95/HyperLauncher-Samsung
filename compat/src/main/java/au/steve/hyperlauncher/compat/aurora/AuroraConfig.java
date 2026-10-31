@@ -10,6 +10,10 @@ public final class AuroraConfig {
 
     public AuroraConfig(Context context) {
         prefs = context.getApplicationContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        if (!prefs.getBoolean("referenceStyleV1", false)) {
+            applyPreset(0);
+            prefs.edit().putBoolean("referenceStyleV1", true).apply();
+        }
     }
 
     public SharedPreferences prefs() {
@@ -23,14 +27,14 @@ public final class AuroraConfig {
     public int clockColor() { return prefs.getInt("clockColor", 0xE8F4FBFF); }
     public boolean autoClockColor() { return prefs.getBoolean("autoClockColor", true); }
     public boolean clock12() { return prefs.getBoolean("clock12", false); }
-    public float clockWidth() { return prefs.getFloat("clockWidth", 0.35f); }
-    public float clockWeight() { return prefs.getFloat("clockWeight", 0.15f); }
-    public float clockSpacing() { return prefs.getFloat("clockSpacing", 0.55f); }
-    public float clockOpacity() { return prefs.getFloat("clockOpacity", 0.92f); }
+    public float clockWidth() { return prefs.getFloat("clockWidth", 0.48f); }
+    public float clockWeight() { return prefs.getFloat("clockWeight", 0.20f); }
+    public float clockSpacing() { return prefs.getFloat("clockSpacing", 0.35f); }
+    public float clockOpacity() { return prefs.getFloat("clockOpacity", 0.64f); }
     public float wallpaperZoom() { return prefs.getFloat("wallpaperZoom", 1f); }
     public float wallpaperFocusX() { return prefs.getFloat("wallpaperFocusX", 0.5f); }
     public float wallpaperFocusY() { return prefs.getFloat("wallpaperFocusY", 0.5f); }
-    public float dimAmount() { return prefs.getFloat("dimAmount", 0.35f); }
+    public float dimAmount() { return prefs.getFloat("dimAmount", 0.18f); }
     public boolean depthEnabled() { return prefs.getBoolean("depthEnabled", true); }
     public float maskFeather() { return prefs.getFloat("maskFeather", 0.5f); }
     public float maskThreshold() { return prefs.getFloat("maskThreshold", 0.30f); }
@@ -41,7 +45,16 @@ public final class AuroraConfig {
     public String autoForeground() { return prefs.getString("autoForeground", null); }
     public String depthStatus() { return prefs.getString("depthStatus", ""); }
 
+    public void applyPreset(int preset) {
+        prefs.edit().putInt("clockPreset", preset).putInt("clockStyle", preset == 3 ? 2 : 0)
+                .putInt("clockSize", 168).putInt("clockY", 0)
+                .putFloat("clockWidth", .48f).putFloat("clockWeight", .20f)
+                .putFloat("clockSpacing", .35f).putFloat("clockOpacity", preset == 4 ? .46f : .64f)
+                .putBoolean("autoClockColor", true).apply();
+    }
+
     public void resetClock() {
+        applyPreset(0);
         prefs.edit()
                 .putInt("clockPreset", 0)
                 .putInt("clockStyle", 0)
@@ -50,10 +63,10 @@ public final class AuroraConfig {
                 .putInt("clockColor", 0xE8F4FBFF)
                 .putBoolean("autoClockColor", true)
                 .putBoolean("clock12", false)
-                .putFloat("clockWidth", 0.35f)
-                .putFloat("clockWeight", 0.15f)
-                .putFloat("clockSpacing", 0.55f)
-                .putFloat("clockOpacity", 0.92f)
+                .putFloat("clockWidth", 0.48f)
+                .putFloat("clockWeight", 0.20f)
+                .putFloat("clockSpacing", 0.35f)
+                .putFloat("clockOpacity", 0.64f)
                 .apply();
     }
 
@@ -63,7 +76,7 @@ public final class AuroraConfig {
                 .putFloat("wallpaperZoom", 1f)
                 .putFloat("wallpaperFocusX", 0.5f)
                 .putFloat("wallpaperFocusY", 0.5f)
-                .putFloat("dimAmount", 0.35f)
+                .putFloat("dimAmount", 0.18f)
                 .putBoolean("depthEnabled", true)
                 .putFloat("maskFeather", 0.5f)
                 .putFloat("maskThreshold", 0.30f)

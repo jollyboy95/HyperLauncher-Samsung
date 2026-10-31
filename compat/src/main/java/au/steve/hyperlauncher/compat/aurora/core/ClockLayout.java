@@ -36,25 +36,21 @@ public final class ClockLayout {
         boolean stacked = preset == 0 || preset == 2 || preset == 4;
         boolean showColon = preset == 1;
         boolean editorialFour = preset == 3;
-        float hScale = stacked ? (0.52f + widthWeight * 0.18f)
-                : editorialFour ? (0.58f + widthWeight * 0.16f)
-                : (0.86f + widthWeight * 0.12f);
-        float vScale = stacked ? 1.18f : editorialFour ? 1.24f : 1.04f;
-        float requested = clockSize * (stacked ? 0.22f : editorialFour ? 0.18f : 0.14f) * (canvasH / 160f);
-        requested = Math.max(canvasH * 0.08f, Math.min(canvasH * 0.34f, requested));
-        float maxWidth = canvasW * (preset == 2 ? 0.62f : 0.78f);
-        float unit = stacked ? Math.max(hoursUnitWidth, minutesUnitWidth)
-                : showColon ? pairUnitWidth : pairUnitWidth;
+        float hScale = stacked ? (0.56f + widthWeight * 0.24f)
+                : editorialFour ? (0.48f + widthWeight * 0.16f) : (0.78f + widthWeight * 0.16f);
+        float vScale = stacked ? 1.40f : editorialFour ? 1.58f : 1.14f;
+        float requested = canvasH * (stacked ? 0.18f : editorialFour ? 0.24f : 0.14f) * clockSize / 168f;
+        requested = Math.max(canvasH * 0.07f, Math.min(canvasH * 0.31f, requested));
+        float maxWidth = canvasW * (preset == 2 ? 0.64f : editorialFour ? 0.88f : 0.72f);
+        float unit = stacked ? Math.max(hoursUnitWidth, minutesUnitWidth) : pairUnitWidth;
         float fitted = GlyphMetrics.fitSize(requested, maxWidth, unit, hScale);
-        float gap = GlyphMetrics.lineGap(fitted, spacing);
-        float group = GlyphMetrics.stackedHeight(fitted, spacing, stacked || editorialFour && false);
-        if (editorialFour) group = fitted * vScale * 0.92f;
-        else if (!stacked) group = fitted * vScale * 0.92f;
-        else group = fitted * 0.84f * vScale + gap;
-        float top = GlyphMetrics.clampTop(canvasH * 0.11f + clockY, group + canvasH * 0.045f, canvasH,
-                canvasH * 0.045f, canvasH * 0.22f);
-        float dateY = top + canvasH * 0.018f;
-        float first = dateY + canvasH * 0.028f + fitted * 0.72f * vScale;
+        float digitHeight = fitted * 0.72f * vScale;
+        float gap = stacked ? digitHeight * (1.01f + spacing * 0.15f) : 0;
+        float group = digitHeight + gap;
+        float top = GlyphMetrics.clampTop(canvasH * (editorialFour ? 0.43f : 0.075f) + clockY,
+                group + canvasH * 0.045f, canvasH, canvasH * 0.045f, canvasH * 0.20f);
+        float dateY = top;
+        float first = dateY + canvasH * 0.030f + digitHeight;
         float x = preset == 2 ? canvasW * 0.34f : canvasW * 0.5f;
         return new ClockLayout(x, dateY, x, first, fitted, gap, hScale, vScale, stacked, showColon, editorialFour);
     }
