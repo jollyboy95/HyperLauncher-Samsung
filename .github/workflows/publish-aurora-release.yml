@@ -56,5 +56,4 @@ jobs:
           gh release create "$RELEASE_TAG" AuroraDepth-v*-signed.apk SHA256SUMS.txt \
             --title "Aurora Depth $RELEASE_TAG" \
             --notes "Signed Aurora Depth preview update. Android confirms installation. Preserve the same permanent signing key for future upgrades." \
-            --prerelease \
             --target "$GITHUB_SHA"
