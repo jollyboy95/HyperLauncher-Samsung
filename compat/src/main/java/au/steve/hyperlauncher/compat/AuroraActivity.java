@@ -10,6 +10,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.view.Gravity;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
@@ -24,6 +25,7 @@ import java.util.Locale;
 public final class AuroraActivity extends Activity {
     private static final int PICK_PHOTO = 100;
     private ImageView wallpaper;
+    private float touchStartY;
     private TextView clock;
     private final android.os.Handler handler = new android.os.Handler(android.os.Looper.getMainLooper());
     private final Runnable ticker = new Runnable() {
@@ -83,23 +85,43 @@ public final class AuroraActivity extends Activity {
             startActivityForResult(i, PICK_PHOTO);
         });
         content.addView(choose);
-        Button unlock = new Button(this);
-        unlock.setText("Unlock using Samsung security");
-        unlock.setOnClickListener(v -> {
-            KeyguardManager km = getSystemService(KeyguardManager.class);
-            if (km != null && km.isKeyguardLocked()) km.requestDismissKeyguard(this, new KeyguardManager.KeyguardDismissCallback() {
-                @Override public void onDismissSucceeded() { finish(); }
-            }); else finish();
+        TextView swipe = new TextView(this);
+        swipe.setText("⌃  Swipe up to unlock");
+        swipe.setTextColor(Color.WHITE);
+        swipe.setTextSize(18);
+        swipe.setGravity(Gravity.CENTER);
+        swipe.setPadding(0, pad, 0, pad);
+        content.addView(swipe);
+        swipe.setOnClickListener(v -> requestSecureUnlock());
+        root.setOnTouchListener((v, event) -> {
+            if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                touchStartY = event.getY();
+                return true;
+            }
+            if (event.getAction() == MotionEvent.ACTION_UP) {
+                if (touchStartY - event.getY() > 90 * getResources().getDisplayMetrics().density) {
+                    requestSecureUnlock();
+                }
+                return true;
+            }
+            return true;
         });
-        content.addView(unlock);
         TextView note = new TextView(this);
-        note.setText("Safe preview only — does not replace Samsung Keyguard or run automatically on wake.");
+        note.setText("Preview v0.2 — swipe up to use Samsung fingerprint, face or PIN. Automatic wake activation is not enabled.");
         note.setTextColor(0xFFB3C7DF);
         note.setTextSize(12);
         note.setGravity(Gravity.CENTER);
         content.addView(note);
         root.addView(content, new FrameLayout.LayoutParams(-1, -1));
         setContentView(root);
+    }
+    private void requestSecureUnlock() {
+        KeyguardManager km = getSystemService(KeyguardManager.class);
+        if (km != null && km.isKeyguardLocked()) {
+            km.requestDismissKeyguard(this, new KeyguardManager.KeyguardDismissCallback() {
+                @Override public void onDismissSucceeded() { finish(); }
+            });
+        } else finish();
     }
     @Override protected void onResume() { super.onResume(); handler.removeCallbacks(ticker); handler.post(ticker); }
     @Override protected void onPause() { handler.removeCallbacks(ticker); super.onPause(); }
