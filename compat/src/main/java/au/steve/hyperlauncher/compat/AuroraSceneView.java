@@ -29,10 +29,10 @@ public final class AuroraSceneView extends View {
     public void startClockDrag(){dragClockStart=prefs.getInt("clockY",0);}
     public int safeClockY(int desired){
         int preset=prefs.getInt("clockPreset",0);
-        float size=prefs.getInt("clockSize",160)*(preset==1?0.89f:1.12f);
+        float size=prefs.getInt("clockSize",160)*(preset==1?0.89f:preset==3?0.72f:1.12f);
         // Keep both rows inside the composition, even at maximum font size.
-        int minimum=(int)Math.ceil(size*0.82f+20f-170f);
-        int maximum=(int)Math.floor(720f-170f-(preset==1?30f:size*0.77f));
+        int minimum=(int)Math.ceil(size*0.82f+54f-170f);
+        int maximum=(int)Math.floor(720f-170f-(preset==1?30f:preset==3?size*0.1f:size*0.77f));
         return Math.max(minimum,Math.min(Math.max(minimum,maximum),desired));
     }
     public void moveClock(float delta){
@@ -87,9 +87,8 @@ public final class AuroraSceneView extends View {
         if(background!=null)imageCover(c,background,390,844);
         paint.setShader(new LinearGradient(0,0,0,844,new int[]{0xC8000C24,0x05000A1B,0xAF000715},null,Shader.TileMode.CLAMP));
         c.drawRect(0,0,390,844,paint);paint.setShader(null);
-        String date=new SimpleDateFormat("EEEE, d MMMM",Locale.getDefault()).format(new Date()).toUpperCase(Locale.getDefault());
+        String date=new SimpleDateFormat("EEEE, d MMMM",Locale.getDefault()).format(new Date());
         Typeface dateFace=Typeface.create("sans-serif-medium",Typeface.NORMAL);
-        text(c,date,195,82,12,0xFFE6F1FF,dateFace,true);
         String digits=new SimpleDateFormat(prefs.getBoolean("clock12",false)?"hhmm":"HHmm",Locale.getDefault()).format(new Date());
         int style=prefs.getInt("clockStyle",0);
         Typeface clockFace=Typeface.create(style==0?"sans-serif-condensed":style==1?"sans-serif-light":"sans-serif",style==0?Typeface.BOLD:Typeface.NORMAL);
@@ -97,15 +96,27 @@ public final class AuroraSceneView extends View {
         float size=prefs.getInt("clockSize",160)*(preset==1?0.89f:1.12f);
         float top=170+safeClockY(prefs.getInt("clockY",0));
         int color=prefs.getInt("clockColor",0xBFD0E9FF);
+        // Date tracks the clock, rather than occupying a fixed coordinate that can overlap it.
+        float firstBaseline=preset==1?top+30:top;
+        float firstTop=firstBaseline-(preset==1?size*0.62f:size)*0.82f;
+        float dateY=Math.max(34f,firstTop-16f);
         float x=preset==2?140:195;
-        if(preset==1)text(c,digits.substring(0,2)+":"+digits.substring(2),195,top+30,size*0.62f,color,clockFace,true);
-        else {
+        text(c,date,x,dateY,12,0xFFE6F1FF,dateFace,true);
+        if(preset==1){
+            text(c,digits.substring(0,2)+":"+digits.substring(2),195,firstBaseline,size*0.62f,color,clockFace,true);
+        }else if(preset==3){
+            // Tall single-row magazine-style digits, with a compact width to leave wallpaper visible.
+            Typeface tall=Typeface.create("sans-serif-condensed",Typeface.NORMAL);
+            text(c,digits,195,top+size*0.10f,size*0.72f,color,tall,true);
+        }else{
             text(c,digits.substring(0,2),x,top,size,color,clockFace,true);
             text(c,digits.substring(2),x,top+size*0.77f,size,color,clockFace,true);
         }
         if(editing){
-            paint.setShader(null);paint.setColor(0x668DC9FF);paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(1.5f);
-            c.drawRoundRect(new RectF(25,top-size+10,365,top+size),16,16,paint);
+            paint.reset();paint.setAntiAlias(true);paint.setColor(0x668DC9FF);
+            paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(1.5f);
+            float bottom=preset==1?firstBaseline+16:top+size*0.87f;
+            c.drawRoundRect(new RectF(25,Math.max(20,dateY-25),365,bottom),16,16,paint);
             paint.setStyle(Paint.Style.FILL);
         }
         // Optional transparent PNG foreground is composited above both rows of digits.
