@@ -96,7 +96,9 @@ public final class AuroraSceneView extends View {
         // Same virtual coordinate system for both settings preview and full screen.
         Canvas c=original;
         c.save();
-        c.scale(width/390f,height/844f);
+        float scale=Math.min(width/390f,height/844f);
+        c.translate((width-390f*scale)/2f,(height-844f*scale)/2f);
+        c.scale(scale,scale);
         paint.setColor(0xFF061125);c.drawColor(0xFF061125);
         if(background!=null)imageCover(c,background,390,844);
         paint.setShader(new LinearGradient(0,0,0,844,new int[]{0xC8000C24,0x05000A1B,0xAF000715},null,Shader.TileMode.CLAMP));
