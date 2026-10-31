@@ -33,14 +33,6 @@ public final class AuroraActivity extends Activity {
             return true;
         });
 
-        TextView edit=new TextView(this);
-        edit.setText("Customize");edit.setTextColor(0xAAFFFFFF);edit.setTextSize(12);
-        edit.setGravity(Gravity.CENTER);
-        FrameLayout.LayoutParams pos=new FrameLayout.LayoutParams((int)(94*getResources().getDisplayMetrics().density),(int)(42*getResources().getDisplayMetrics().density),Gravity.TOP|Gravity.RIGHT);
-        pos.topMargin=(int)(30*getResources().getDisplayMetrics().density);
-        root.addView(edit,pos);
-        edit.setOnClickListener(v->startActivity(new Intent(this,AuroraSettingsActivity.class)));
-        edit.setAlpha(0.45f);
         setContentView(root);
     }
     private void unlock(){
