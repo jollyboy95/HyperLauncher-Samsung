@@ -133,7 +133,7 @@ public final class AuroraSettingsActivity extends Activity {
     private void refreshPreview() {
         if(previewClock==null)return;
         String time=new SimpleDateFormat(prefs.getBoolean("clock12",false)?"hhmm":"HHmm",Locale.getDefault()).format(new Date());
-        previewClock.setText(time.substring(0,2)+"\\n"+time.substring(2));
+        previewClock.setText(time.substring(0,2)+"\n"+time.substring(2));
         // Preview is approximately two-thirds the full-screen clock size.
         previewClock.setTextSize(prefs.getInt("clockSize",160)*0.55f);
         previewClock.setLineSpacing(-16*getResources().getDisplayMetrics().density,0.84f);
