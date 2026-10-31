@@ -25,19 +25,21 @@ import java.util.Locale;
 public final class AuroraActivity extends Activity {
     private static final int PICK_PHOTO = 100;
     private ImageView wallpaper;
+    private ImageView foreground;
+    private android.content.SharedPreferences prefs;
     private float touchStartY;
     private TextView clock;
     private final android.os.Handler handler = new android.os.Handler(android.os.Looper.getMainLooper());
     private final Runnable ticker = new Runnable() {
         @Override public void run() {
-            if (clock != null) clock.setText(new SimpleDateFormat("HH:mm", Locale.getDefault()).format(new Date()));
+            if (clock != null) clock.setText(new SimpleDateFormat(prefs != null && prefs.getBoolean("clock12", false) ? "h:mm" : "HH:mm", Locale.getDefault()).format(new Date()));
             handler.postDelayed(this, 1000);
         }
     };
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         setShowWhenLocked(true);
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        prefs = getSharedPreferences("aurora", MODE_PRIVATE);
         getWindow().setStatusBarColor(Color.BLACK);
         getWindow().setNavigationBarColor(Color.BLACK);
         FrameLayout root = new FrameLayout(this);
@@ -45,7 +47,7 @@ public final class AuroraActivity extends Activity {
         wallpaper = new ImageView(this);
         wallpaper.setScaleType(ImageView.ScaleType.CENTER_CROP);
         root.addView(wallpaper, new FrameLayout.LayoutParams(-1, -1));
-        String saved = getPreferences(MODE_PRIVATE).getString("wallpaper", null);
+        String saved = prefs.getString("wallpaper", null);
         if (saved != null) try { wallpaper.setImageURI(Uri.parse(saved)); } catch (Exception ignored) {}
         View shade = new View(this);
         shade.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, new int[]{0xB900102A, 0x33000B24, 0xA900071A}));
@@ -64,7 +66,7 @@ public final class AuroraActivity extends Activity {
         clock = new TextView(this);
         clock.setTextColor(0xFF80B8FF);
         clock.setTypeface(Typeface.create("sans-serif-light", Typeface.NORMAL));
-        clock.setTextSize(88);
+        clock.setTextSize(prefs.getInt("clockSize", 88));
         clock.setGravity(Gravity.CENTER);
         content.addView(clock);
         TextView date = new TextView(this);
@@ -73,6 +75,14 @@ public final class AuroraActivity extends Activity {
         date.setTextSize(19);
         date.setGravity(Gravity.CENTER);
         content.addView(date);
+        foreground = new ImageView(this);
+        foreground.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        FrameLayout.LayoutParams fgParams = new FrameLayout.LayoutParams(-1, (int)(260 * getResources().getDisplayMetrics().density), Gravity.TOP);
+        fgParams.topMargin = (int)(135 * getResources().getDisplayMetrics().density);
+        String cutout = prefs.getString("foreground", null);
+        if (cutout != null) try { foreground.setImageURI(Uri.parse(cutout)); } catch (Exception ignored) {}
+        // Overlay above clock; foreground must be a transparent PNG to create a depth illusion.
+        root.addView(foreground, fgParams);
         View space = new View(this);
         content.addView(space, new LinearLayout.LayoutParams(1, 0, 1));
         Button choose = new Button(this);
@@ -85,6 +95,10 @@ public final class AuroraActivity extends Activity {
             startActivityForResult(i, PICK_PHOTO);
         });
         content.addView(choose);
+        Button settings = new Button(this);
+        settings.setText("Aurora settings");
+        settings.setOnClickListener(v -> startActivity(new Intent(this, AuroraSettingsActivity.class)));
+        content.addView(settings);
         TextView swipe = new TextView(this);
         swipe.setText("⌃  Swipe up to unlock");
         swipe.setTextColor(Color.WHITE);
@@ -123,7 +137,16 @@ public final class AuroraActivity extends Activity {
             });
         } else finish();
     }
-    @Override protected void onResume() { super.onResume(); handler.removeCallbacks(ticker); handler.post(ticker); }
+    @Override protected void onResume() {
+        super.onResume();
+        if (clock != null) clock.setTextSize(prefs.getInt("clockSize",88));
+        if (foreground != null) {
+            String u=prefs.getString("foreground",null);
+            foreground.setImageDrawable(null);
+            if(u!=null)try{foreground.setImageURI(Uri.parse(u));}catch(Exception ignored){}
+        }
+        handler.removeCallbacks(ticker);handler.post(ticker);
+    }
     @Override protected void onPause() { handler.removeCallbacks(ticker); super.onPause(); }
     @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
@@ -131,7 +154,7 @@ public final class AuroraActivity extends Activity {
             Uri uri = data.getData();
             try {
                 getContentResolver().takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                getPreferences(MODE_PRIVATE).edit().putString("wallpaper", uri.toString()).apply();
+                prefs.edit().putString("wallpaper", uri.toString()).apply();
                 wallpaper.setImageURI(uri);
             } catch (Exception ignored) { }
         }
