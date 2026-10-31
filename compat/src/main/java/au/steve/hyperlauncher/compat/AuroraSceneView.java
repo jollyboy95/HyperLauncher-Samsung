@@ -433,8 +433,15 @@ public final class AuroraSceneView extends View {
         Typeface face = Typeface.create(Typeface.create("sans-serif-condensed", Typeface.NORMAL),
                 Math.round(preset == 9 ? 100 + config.clockWeight() * 500 : 650 + config.clockWeight() * 250), false);
         c.save();
-        c.translate(w * config.clockX(), clockOffset(h));
-        c.scale(config.clockSize() / 168f, config.clockStretch(), w / 2, h * .3f);
+        if(preset==15) {
+            au.steve.hyperlauncher.compat.aurora.core.PosterFit fit=
+                    au.steve.hyperlauncher.compat.aurora.core.PosterFit.neon(w,h,config.clockSize(),
+                            config.clockStretch(),w*config.clockX(),clockOffset(h),bottomContentTop);
+            c.translate(fit.x,fit.y);c.scale(fit.scaleX,fit.scaleY);
+        } else {
+            c.translate(w * config.clockX(), clockOffset(h));
+            c.scale(config.clockSize() / 168f, config.clockStretch(), w / 2, h * .3f);
+        }
         drawingClock = true;
         materialOverride = front ? (config.minutesMaterial() < 0 ? 2 : config.minutesMaterial())
                 : (config.hoursMaterial() < 0 ? 0 : config.hoursMaterial());

@@ -105,6 +105,9 @@ public final class NotificationHub {
         boolean urgent = Notification.CATEGORY_CALL.equals(n.category) || Notification.CATEGORY_ALARM.equals(n.category);
         boolean system = "android".equals(sbn.getPackageName()) || "com.android.systemui".equals(sbn.getPackageName())
                 || "com.android.settings".equals(sbn.getPackageName());
+        boolean systemUiHousekeeping = "com.android.systemui".equals(sbn.getPackageName())
+                && (importance == android.app.NotificationManager.IMPORTANCE_UNSPECIFIED
+                        || importance <= android.app.NotificationManager.IMPORTANCE_DEFAULT);
         boolean quietSystem = system && Notification.CATEGORY_SYSTEM.equals(n.category)
                 && importance != android.app.NotificationManager.IMPORTANCE_UNSPECIFIED
                 && importance < android.app.NotificationManager.IMPORTANCE_DEFAULT;
@@ -112,7 +115,7 @@ public final class NotificationHub {
                 || importance == android.app.NotificationManager.IMPORTANCE_NONE
                 || importance == android.app.NotificationManager.IMPORTANCE_MIN
                 || (!urgent && (sbn.isOngoing() || (n.flags & Notification.FLAG_FOREGROUND_SERVICE) != 0
-                        || Notification.CATEGORY_SERVICE.equals(n.category) || quietSystem))) {
+                        || Notification.CATEGORY_SERVICE.equals(n.category) || quietSystem || systemUiHousekeeping))) {
             remove(sbn.getKey()); return;
         }
         if ((n.flags & Notification.FLAG_GROUP_SUMMARY) != 0) { remove(sbn.getKey()); return; }

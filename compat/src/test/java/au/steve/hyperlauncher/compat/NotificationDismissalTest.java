@@ -179,4 +179,17 @@ public class NotificationDismissalTest {
         hub.upsert(system,"Alarm",4,unspecified,false);assertEquals(1,hub.snapshot().size());
         hub.setConnected(false);
     }
+    @Test public void systemUiCountNoticeIsHiddenWithoutHidingUrgentAlerts() {
+        Context context=RuntimeEnvironment.getApplication();NotificationHub hub=NotificationHub.get();hub.setConnected(false);
+        Notification n=new Notification.Builder(context,"system").setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setContentTitle("1 more notification").build();
+        StatusBarNotification sbn=new StatusBarNotification("com.android.systemui","com.android.systemui",1,null,
+                1,1,0,n,android.os.Process.myUserHandle(),1);
+        int noOverride=android.service.notification.NotificationListenerService.Ranking.VISIBILITY_NO_OVERRIDE;
+        hub.upsert(sbn,"System UI");assertTrue(hub.snapshot().isEmpty());
+        hub.upsert(sbn,"System UI",3,noOverride,false);assertTrue(hub.snapshot().isEmpty());
+        hub.upsert(sbn,"System UI",4,noOverride,false);assertEquals(1,hub.snapshot().size());
+        n.category=Notification.CATEGORY_ALARM;hub.upsert(sbn,"System UI",3,noOverride,false);
+        assertEquals(1,hub.snapshot().size());hub.setConnected(false);
+    }
 }
