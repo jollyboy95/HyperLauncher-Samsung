@@ -38,6 +38,7 @@ public final class DepthEngine {
 
     private final Context context;
     private Interpreter interpreter;
+    private volatile boolean closed;
     private ByteBuffer modelBuffer;
 
     public DepthEngine(Context context) {
@@ -46,12 +47,15 @@ public final class DepthEngine {
 
     public void segmentAsync(Uri wallpaper, Bitmap source, float threshold, Callback callback) {
         WORKER.execute(() -> {
+            if (closed) return;
             try {
                 callback.onStatus("Identifying foreground subject…");
                 File out = segment(wallpaper, source, threshold);
+                if (closed) return;
                 if (out == null) callback.onFailure("No foreground subject was found. You can still pick a PNG cutout.");
                 else callback.onComplete(out, "Depth subject ready");
             } catch (Exception | LinkageError e) {
+                if (closed) return;
                 callback.onFailure("Automatic depth unavailable: " + e.getMessage());
             }
         });
@@ -60,6 +64,7 @@ public final class DepthEngine {
     /** Owns the sampled bitmap until inference completes. Callbacks run on the worker. */
     public void segmentWallpaperAsync(Uri wallpaper, float threshold, boolean force, Callback callback) {
         WORKER.execute(() -> {
+            if (closed) return;
             Bitmap source = null;
             try {
                 File cached = cachedMask(wallpaper);
@@ -82,9 +87,11 @@ public final class DepthEngine {
                 }
                 if (source == null) throw new IllegalStateException("Unable to read wallpaper");
                 File out = segment(wallpaper, source, threshold);
+                if (closed) return;
                 if (out == null) callback.onFailure("No foreground subject was found. Try a PNG cutout.");
                 else callback.onComplete(out, "Depth subject ready");
             } catch (Exception | LinkageError e) {
+                if (closed) return;
                 callback.onFailure("Automatic depth unavailable: " + e.getMessage());
             } finally {
                 if (source != null) source.recycle();
@@ -102,15 +109,17 @@ public final class DepthEngine {
         return file.isFile() && file.length() > 0 ? file : null;
     }
 
-    public synchronized void close() {
-        if (interpreter != null) {
-            interpreter.close();
-            interpreter = null;
-        }
+    public void close() {
+        closed = true;
+        WORKER.execute(() -> {
+            synchronized (this) {
+                if (interpreter != null) { interpreter.close(); interpreter = null; }
+            }
+        });
     }
 
     private synchronized File segment(Uri wallpaper, Bitmap source, float threshold) throws Exception {
-        if (source == null || source.getWidth() <= 0) return null;
+        if (closed || source == null || source.getWidth() <= 0) return null;
         ensureInterpreter();
         Tensor output = interpreter.getOutputTensor(0);
         int[] dimensions = LabelMask.hwcDimensions(output.shape());

@@ -177,11 +177,21 @@ public class AuroraFeatureTest {
             dialog.getButton(android.content.DialogInterface.BUTTON_POSITIVE).performClick();
             org.robolectric.shadows.ShadowLooper.idleMainLooper();
             assertNotNull(findText(root, "My first look"));
-            assertEquals(1, new SavedLooks(new AuroraConfig(activity.get())).list().size());
+            assertEquals("Design stays in draft until Apply", 0, new SavedLooks(new AuroraConfig(activity.get())).list().size());
             findText(root, "Features").performClick();
             assertNotNull(findText(root, "Music controls"));
             assertNotNull(findText(root, "Notification display"));
+            findDescription(root, "Apply lock-screen changes").performClick();
+            assertEquals(1, new SavedLooks(new AuroraConfig(activity.get())).list().size());
         }
+    }
+    private View findDescription(View view, String description) {
+        if (description.contentEquals(view.getContentDescription() == null ? "" : view.getContentDescription())) return view;
+        if (view instanceof android.view.ViewGroup) {
+            android.view.ViewGroup group=(android.view.ViewGroup)view;
+            for(int i=0;i<group.getChildCount();i++) { View found=findDescription(group.getChildAt(i),description);if(found!=null)return found; }
+        }
+        return null;
     }
     private android.widget.EditText findEditText(View view) {
         if (view instanceof android.widget.EditText) return (android.widget.EditText)view;

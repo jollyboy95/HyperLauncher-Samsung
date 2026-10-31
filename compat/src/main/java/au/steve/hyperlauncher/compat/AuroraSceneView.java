@@ -21,6 +21,7 @@ import au.steve.hyperlauncher.compat.aurora.DepthEngine;
 import au.steve.hyperlauncher.compat.aurora.core.NotificationDisplay;
 import au.steve.hyperlauncher.compat.aurora.core.ClockLayout;
 import au.steve.hyperlauncher.compat.aurora.core.ColorMath;
+import au.steve.hyperlauncher.compat.aurora.core.GlassBlur;
 import au.steve.hyperlauncher.compat.aurora.core.WallpaperTransform;
 import java.io.File;
 import java.io.InputStream;
@@ -34,6 +35,8 @@ public final class AuroraSceneView extends View {
     private final Paint measure = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final AuroraConfig config;
     private Bitmap background;
+    private Bitmap frosted;
+    private final int decodeLimit;
     private Bitmap foreground;
     private boolean preview;
     private boolean editing;
@@ -56,7 +59,11 @@ public final class AuroraSceneView extends View {
     }
 
     public AuroraSceneView(Context context, boolean preview, AuroraConfig settings) {
+        this(context, preview, settings, 1800);
+    }
+    public AuroraSceneView(Context context, boolean preview, AuroraConfig settings, int imageLimit) {
         super(context);
+        decodeLimit = imageLimit;
         this.preview = preview;
         config = settings;
         displayedPreset = config.clockPreset();
@@ -69,8 +76,14 @@ public final class AuroraSceneView extends View {
         invalidate();
     }
 
+    private int clockOffset(float height) {
+        if (preview && !config.prefs().contains("clockYRatio"))
+            return Math.round(config.clockY() * height / getResources().getDisplayMetrics().heightPixels);
+        return config.clockYForHeight(height);
+    }
+
     public void startClockDrag() {
-        dragClockStart = config.clockYForHeight(getHeight());
+        dragClockStart = clockOffset(getHeight());
         dragClockX = config.clockX();
     }
 
@@ -99,6 +112,9 @@ public final class AuroraSceneView extends View {
     }
 
     public void animatePreset(int preset) {
+        if (!config.motionEnabled() || !ValueAnimator.areAnimatorsEnabled()) {
+            displayedPreset=preset; transition=1;invalidate();return;
+        }
         if (preset == displayedPreset && transition >= 1f) {
             invalidate();
             return;
@@ -108,7 +124,7 @@ public final class AuroraSceneView extends View {
         transition = 0f;
         animator = ValueAnimator.ofFloat(0f, 1f);
         animator.setDuration(420);
-        animator.setInterpolator(new DecelerateInterpolator());
+        animator.setInterpolator(new android.view.animation.PathInterpolator(.2f,.85f,.2f,1f));
         animator.addUpdateListener(a -> {
             transition = (float) a.getAnimatedValue();
             invalidate();
@@ -128,7 +144,7 @@ public final class AuroraSceneView extends View {
                 o.inJustDecodeBounds = true;
                 BitmapFactory.decodeStream(bounds, null, o);
                 o.inSampleSize = 1;
-                int max = 1800;
+                int max = decodeLimit;
                 while (o.outWidth / o.inSampleSize > max || o.outHeight / o.inSampleSize > max) o.inSampleSize *= 2;
                 o.inJustDecodeBounds = false;
                 try (InputStream actual = getContext().getContentResolver().openInputStream(Uri.parse(value))) {
@@ -140,12 +156,12 @@ public final class AuroraSceneView extends View {
         }
     }
 
-    private static Bitmap decodeFile(File file) {
+    private Bitmap decodeFile(File file) {
         BitmapFactory.Options o = new BitmapFactory.Options();
         o.inJustDecodeBounds = true;
         BitmapFactory.decodeFile(file.getAbsolutePath(), o);
         o.inSampleSize = 1;
-        int max = 1800;
+        int max = decodeLimit;
         while (o.outWidth / o.inSampleSize > max || o.outHeight / o.inSampleSize > max) o.inSampleSize *= 2;
         o.inJustDecodeBounds = false;
         return BitmapFactory.decodeFile(file.getAbsolutePath(), o);
@@ -162,6 +178,8 @@ public final class AuroraSceneView extends View {
         if (!String.valueOf(bg).equals(loadedBackground)) {
             if (background != null) background.recycle();
             background = load(bg);
+            if (frosted != null) frosted.recycle();
+            frosted = null;
             loadedBackground = String.valueOf(bg);
         }
         String foregroundKey = String.valueOf(fg);
@@ -186,9 +204,32 @@ public final class AuroraSceneView extends View {
                 t.dy + bitmap.getHeight() * t.scale), paint);
     }
 
+    public void drawFrostedBackdrop(Canvas canvas, View owner) {
+        if (background == null || videoReady || getWidth() == 0 || getHeight() == 0) {
+            canvas.drawColor(0xFF172432); return;
+        }
+        if (frosted == null) {
+            float scale = Math.min(1, Math.min(180f/background.getWidth(), 400f/background.getHeight()));
+            int width = Math.max(1,Math.round(background.getWidth()*scale));
+            int height = Math.max(1,Math.round(background.getHeight()*scale));
+            Bitmap small = Bitmap.createScaledBitmap(background,width,height,true);
+            int[] pixels = new int[width*height]; small.getPixels(pixels,0,width,0,0,width,height);
+            frosted = Bitmap.createBitmap(GlassBlur.blur(pixels,width,height,3),width,height,Bitmap.Config.ARGB_8888);
+            if (small != background) small.recycle();
+        }
+        int[] origin = new int[2], position = new int[2];getLocationInWindow(origin);owner.getLocationInWindow(position);
+        int save = canvas.save();canvas.translate(origin[0]-position[0],origin[1]-position[1]);
+        Paint backdrop = new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);
+        WallpaperTransform transform = WallpaperTransform.compute(frosted.getWidth(),frosted.getHeight(),getWidth(),getHeight(),
+                frameZoom,frameFocusX,frameFocusY);
+        canvas.drawBitmap(frosted,null,new RectF(transform.dx,transform.dy,
+                transform.dx+frosted.getWidth()*transform.scale,transform.dy+frosted.getHeight()*transform.scale),backdrop);
+        canvas.restoreToCount(save);
+    }
+
     private int clockColour() {
         int manual = config.clockColor();
-        int alpha = Math.round(config.clockOpacity() * 255f);
+        int alpha = Math.round(config.clockOpacity() * 255f * (.65f + .35f * transition));
         if (!config.autoClockColor() || background == null) return (alpha << 24) | (manual & 0x00FFFFFF);
         int w = background.getWidth();
         int h = background.getHeight();
@@ -201,7 +242,7 @@ public final class AuroraSceneView extends View {
             }
         }
         int auto = ColorMath.fromSamples(samples);
-        int a = Math.round(config.clockOpacity() * 255f);
+        int a = Math.round(config.clockOpacity() * 255f * (.65f + .35f * transition));
         return (a << 24) | (auto & 0x00FFFFFF);
     }
 
@@ -248,7 +289,7 @@ public final class AuroraSceneView extends View {
         float width = getWidth();
         float height = getHeight();
         if (width <= 0 || height <= 0) return;
-        float motion = config.photoMotion() && !preview && !videoReady && ValueAnimator.areAnimatorsEnabled()
+        float motion = config.photoMotion() && config.motionEnabled() && !preview && !videoReady && ValueAnimator.areAnimatorsEnabled()
                 ? (android.os.SystemClock.uptimeMillis() - motionStart) / 1000f : 0;
         frameZoom = config.wallpaperZoom() * (motion == 0 ? 1f : 1.025f);
         frameFocusX = config.wallpaperFocusX() + (motion == 0 ? 0 : (float) Math.sin(motion * .15f) * .025f);
@@ -286,7 +327,7 @@ public final class AuroraSceneView extends View {
         measure.setTextSize(100f);
         measure.setLetterSpacing(-0.07f);
         ClockLayout layout = ClockLayout.compute(config.clockPreset(), width, height, config.clockSize(),
-                config.clockYForHeight(height), config.clockWidth(), config.clockSpacing(),
+                clockOffset(height), config.clockWidth(), config.clockSpacing(),
                 measure.measureText(hours) / 100f, measure.measureText(minutes) / 100f,
                 measure.measureText(config.clockPreset() == 3 ? digits : hours + ":" + minutes) / 100f,
                 config.clockStretch(), config.clockX());
@@ -377,7 +418,7 @@ public final class AuroraSceneView extends View {
         Typeface face = Typeface.create(Typeface.create("sans-serif-condensed", Typeface.NORMAL),
                 Math.round(preset == 9 ? 100 + config.clockWeight() * 500 : 650 + config.clockWeight() * 250), false);
         c.save();
-        c.translate(w * config.clockX(), config.clockYForHeight(h));
+        c.translate(w * config.clockX(), clockOffset(h));
         c.scale(config.clockSize() / 168f, config.clockStretch(), w / 2, h * .3f);
         drawingClock = true;
         materialOverride = front ? (config.minutesMaterial() < 0 ? 2 : config.minutesMaterial())
@@ -434,6 +475,12 @@ public final class AuroraSceneView extends View {
         c.scale(box.width() / bounds.width(), box.height() / bounds.height());
         text(c, value, -bounds.left, -bounds.top, 100, color, face, false, -.03f);
         c.restore();
+    }
+
+    public void releaseBitmaps() {
+        if (background != null) { background.recycle(); background=null; }
+        if (foreground != null) { foreground.recycle(); foreground=null; }
+        if (frosted != null) { frosted.recycle(); frosted=null; }
     }
 
     @Override protected void onDetachedFromWindow() {

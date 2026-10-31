@@ -22,13 +22,16 @@ public final class AuroraWallpaperHost extends FrameLayout implements TextureVie
     private boolean active;
 
     public AuroraWallpaperHost(Context context, boolean preview) {
+        this(context, preview, new AuroraConfig(context));
+    }
+    public AuroraWallpaperHost(Context context, boolean preview, AuroraConfig settings) {
         super(context);
         setBackgroundColor(0xFF071018);
-        config = new AuroraConfig(context);
+        config = settings;
         texture = new TextureView(context);
         texture.setSurfaceTextureListener(this);
         addView(texture, new FrameLayout.LayoutParams(-1, -1));
-        scene = new AuroraSceneView(context, preview);
+        scene = new AuroraSceneView(context, preview, settings);
         addView(scene, new FrameLayout.LayoutParams(-1, -1));
     }
 

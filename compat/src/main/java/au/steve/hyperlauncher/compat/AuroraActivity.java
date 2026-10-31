@@ -37,6 +37,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 import au.steve.hyperlauncher.compat.aurora.AuroraConfig;
+import au.steve.hyperlauncher.compat.aurora.AuroraWakeService;
 import au.steve.hyperlauncher.compat.aurora.DepthEngine;
 import java.io.File;
 import au.steve.hyperlauncher.compat.aurora.NotificationHub;
@@ -44,8 +45,15 @@ import java.text.DateFormat;
 import java.util.Date;
 import java.util.List;
 
-public final class AuroraActivity extends Activity {
+public class AuroraActivity extends Activity {
     private AuroraSceneView scene;
+    private boolean wakeReceiverRegistered;
+    private final android.content.BroadcastReceiver wakeExit = new android.content.BroadcastReceiver() {
+        @Override public void onReceive(android.content.Context context, Intent intent) {
+            if ((getIntent().getBooleanExtra(AuroraWakeService.EXTRA_AUTO, false) || config.autoWakeEnabled())
+                    && (AuroraWakeService.ACTION_UNLOCKED.equals(intent.getAction()) || Intent.ACTION_SCREEN_OFF.equals(intent.getAction()))) finish();
+        }
+    };
     private LinearLayout notices;
     private AuroraWallpaperHost wallpaperHost;
     private LockMediaController media;
@@ -78,6 +86,13 @@ public final class AuroraActivity extends Activity {
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         config = new AuroraConfig(this);
+        android.content.IntentFilter wakeFilter = new android.content.IntentFilter(AuroraWakeService.ACTION_UNLOCKED);
+        wakeFilter.addAction(Intent.ACTION_SCREEN_OFF);
+        if (Build.VERSION.SDK_INT >= 33) registerReceiver(wakeExit, wakeFilter, android.content.Context.RECEIVER_NOT_EXPORTED);
+        // The signature permission protects API 28–32 too; those releases ignore the newer flag bit.
+        else registerReceiver(wakeExit, wakeFilter, "au.steve.hyperlauncher.compat.permission.INTERNAL", null,
+                android.content.Context.RECEIVER_NOT_EXPORTED);
+        wakeReceiverRegistered = true;
         setShowWhenLocked(true);
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(Color.BLACK);
@@ -98,7 +113,7 @@ public final class AuroraActivity extends Activity {
         android.view.GestureDetector gestures = new android.view.GestureDetector(this,
                 new android.view.GestureDetector.SimpleOnGestureListener() {
                     @Override public void onLongPress(MotionEvent e) {
-                        startActivity(new Intent(AuroraActivity.this, AuroraSettingsActivity.class));
+                        afterUnlock(() -> startActivity(new Intent(AuroraActivity.this, AuroraSettingsActivity.class)));
                     }
                 });
         scene.setOnTouchListener((v, e) -> {
@@ -223,30 +238,46 @@ public final class AuroraActivity extends Activity {
         if (config.showMedia() && media != null && media.hasSession()) addMediaCard(redact);
         if (!config.showNotifications() || items == null || items.isEmpty()) return;
         boolean canClear = false;
-        for (NotificationHub.Item item : items) if (item.dismissible) { canClear = true; break; }
-        if (canClear) {
-            TextView clearAll = label("Clear all", 12, 0xFFE7F2FF, true);
-            clearAll.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
-            clearAll.setContentDescription("Clear all dismissible notifications");
-            clearAll.setPadding(dp(12), dp(8), dp(12), dp(8));
-            clearAll.setMinHeight(dp(48));
-            clearAll.setOnClickListener(v -> dismissalFeedback(NotificationHub.get().clearAll()));
-            notices.addView(clearAll);
-        }
+        for (NotificationHub.Item item : items) if (item.dismissible) { canClear=true;break; }
         int mode = config.notificationMode();
-        if (mode != lastNotificationMode) { notificationsExpanded = false; lastNotificationMode = mode; }
-        if (NotificationDisplay.showCount(mode, items.size())) {
-            TextView count = label(items.size() + (items.size() == 1 ? " notification  ·  " : " notifications  ·  ")
-                    + (notificationsExpanded ? "Collapse" : "Expand"), 12, 0xFFE7F2FF, true);
-            count.setPadding(dp(12), dp(8), dp(12), dp(8));
-            count.setOnClickListener(v -> { notificationsExpanded = !notificationsExpanded; renderNotices(NotificationHub.get().snapshot()); });
-            notices.addView(count);
+        if (mode != lastNotificationMode) { notificationsExpanded=false;lastNotificationMode=mode; }
+        LinearLayout header=new LinearLayout(this);header.setGravity(Gravity.CENTER_VERTICAL);
+        TextView count=label(NotificationDisplay.showCount(mode,items.size())
+                ? items.size() + (items.size()==1?" notification":" notifications") + "  ·  " + (notificationsExpanded?"Collapse":"Expand")
+                : "Notifications",12,0xDBE8F0FB,true);
+        count.setPadding(dp(10),0,dp(8),0);count.setMinHeight(dp(48));count.setGravity(Gravity.CENTER_VERTICAL);
+        if(NotificationDisplay.showCount(mode,items.size())) count.setOnClickListener(v->{
+            notificationsExpanded=!notificationsExpanded;renderNotices(NotificationHub.get().snapshot());
+            if(config.motionEnabled()&&android.animation.ValueAnimator.areAnimatorsEnabled()){
+                notices.setAlpha(.7f);notices.animate().alpha(1).setDuration(220).start();
+            }
+        });
+        header.addView(count,new LinearLayout.LayoutParams(0,dp(48),1));
+        if(canClear){
+            TextView clear=label("Clear all",12,0xFFE7F2FF,true);clear.setGravity(Gravity.CENTER);
+            clear.setContentDescription("Clear all dismissible notifications");
+            clear.setOnClickListener(v->dismissalFeedback(NotificationHub.get().clearAll()));
+            header.addView(clear,new LinearLayout.LayoutParams(dp(72),dp(48)));
         }
+        notices.addView(header);
         LinearLayout list = new LinearLayout(this);
         list.setOrientation(LinearLayout.VERTICAL);
         int limit = NotificationDisplay.visibleCards(mode, notificationsExpanded, items.size());
         if (limit == 0) return;
-        for (int i = 0; i < items.size() && i < limit; i++) list.addView(card(items.get(i), redact));
+        for (int i=0;i<items.size()&&i<limit;i++) {
+            View front=card(items.get(i),redact);
+            if(mode==NotificationDisplay.STACK&&!notificationsExpanded&&items.size()>1){
+                FrameLayout stack=new FrameLayout(this);stack.setPadding(0,0,0,dp(12));
+                for(int layer=2;layer>=1;layer--){
+                    View back=new View(this);back.setBackground(new GlassBackdrop(scene,back));back.setAlpha(layer==2?.38f:.65f);
+                    back.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+                    FrameLayout.LayoutParams slab=new FrameLayout.LayoutParams(-1,dp(64),Gravity.BOTTOM);
+                    slab.leftMargin=slab.rightMargin=dp(layer*7);slab.bottomMargin=dp((2-layer)*5);stack.addView(back,slab);
+                }
+                FrameLayout.LayoutParams face=new FrameLayout.LayoutParams(-1,-2);face.bottomMargin=dp(8);stack.addView(front,face);
+                list.addView(stack,new LinearLayout.LayoutParams(-1,-2));
+            }else list.addView(front);
+        }
         ScrollView scroll = new NotificationScrollView(this);
         scroll.setFillViewport(false);
         scroll.addView(list);
@@ -311,7 +342,7 @@ public final class AuroraActivity extends Activity {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setPadding(dp(14), dp(10), dp(14), dp(10));
-        card.setBackground(glass());
+        card.setBackground(new GlassBackdrop(scene,card));
         String title = data == null ? "Now playing" : String.valueOf(data.getText(MediaMetadata.METADATA_KEY_TITLE));
         if (title.equals("null")) title = "Now playing";
         CharSequence artist = data == null ? null : data.getText(MediaMetadata.METADATA_KEY_ARTIST);
@@ -377,7 +408,7 @@ public final class AuroraActivity extends Activity {
         glass.setColor(0x7A1C2836);
         glass.setCornerRadius(dp(22));
         glass.setStroke(dp(1), 0x55FFFFFF);
-        row.setBackground(glass);
+        row.setBackground(new GlassBackdrop(scene,row));
         row.setOnClickListener(v -> {
             if (item.contentIntent == null) return;
             afterUnlock(() -> { try { item.contentIntent.send(); } catch (PendingIntent.CanceledException e) {
@@ -443,13 +474,18 @@ public final class AuroraActivity extends Activity {
 
     @Override protected void onResume() {
         super.onResume();
+        AuroraWakeService.screenVisible = true;
+        if (getIntent().getBooleanExtra(AuroraWakeService.EXTRA_AUTO, false))
+            config.prefs().edit().putString("autoWakeStatus", "Automatic launch active").apply();
         immersive();
         wallpaperHost.resume();
         updateShortcuts();
         media.start();
-        if (config.wakeAnimation() && android.animation.ValueAnimator.areAnimatorsEnabled()) {
-            scene.setAlpha(.65f);
-            scene.animate().alpha(1).setDuration(420).start();
+        if (config.motionEnabled() && config.wakeAnimation() && android.animation.ValueAnimator.areAnimatorsEnabled()) {
+            wallpaperHost.setScaleX(1.025f);wallpaperHost.setScaleY(1.025f);
+            wallpaperHost.animate().scaleX(1).scaleY(1).setDuration(650)
+                    .setInterpolator(new android.view.animation.PathInterpolator(.18f,.8f,.2f,1)).start();
+            scene.setAlpha(.82f);scene.animate().alpha(1).setDuration(450).start();
         }
         ensureDepth();
         handler.removeCallbacks(tick);
@@ -480,12 +516,16 @@ public final class AuroraActivity extends Activity {
     }
 
     @Override protected void onDestroy() {
+        if (wakeReceiverRegistered) { unregisterReceiver(wakeExit); wakeReceiverRegistered = false; }
         if (depthEngine != null) depthEngine.close();
         super.onDestroy();
     }
 
     @Override protected void onPause() {
+        AuroraWakeService.screenVisible = false;
         wallpaperHost.pause();
+        wallpaperHost.animate().cancel();wallpaperHost.setScaleX(1);wallpaperHost.setScaleY(1);
+        notices.animate().cancel();notices.setAlpha(1);
         media.stop();
         scene.animate().cancel();
         scene.setAlpha(1);

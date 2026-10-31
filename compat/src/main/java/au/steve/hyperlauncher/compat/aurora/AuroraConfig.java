@@ -64,7 +64,9 @@ public final class AuroraConfig {
     public int clockMaterial() { return prefs.getInt("clockMaterial", 0); }
     public int dateStyle() { return prefs.getInt("dateStyle", 0); }
     public boolean showSeconds() { return prefs.getBoolean("showSeconds", false); }
+    public boolean motionEnabled() { return prefs.getBoolean("motionEnabled", true); }
     public boolean photoMotion() { return prefs.getBoolean("photoMotion", false); }
+    public boolean autoWakeEnabled() { return prefs.getBoolean("autoWakeEnabled", false); }
     public boolean wakeAnimation() { return prefs.getBoolean("wakeAnimation", true); }
     public String videoWallpaper() { return prefs.getString("videoWallpaper", null); }
     public boolean showMedia() { return prefs.getBoolean("showMedia", true); }

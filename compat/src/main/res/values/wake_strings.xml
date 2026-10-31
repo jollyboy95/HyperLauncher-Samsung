@@ -1,0 +1,4 @@
+<resources>
+    <string name="auto_wake_label">Aurora automatic lock screen</string>
+    <string name="auto_wake_description">Shows Aurora when the screen wakes while locked. It observes only screen on/off and System UI window changes. It does not read screen contents, take screenshots, perform gestures, or unlock the phone. You can turn it off at any time.</string>
+</resources>
