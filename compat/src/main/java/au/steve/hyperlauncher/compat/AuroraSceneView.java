@@ -153,8 +153,8 @@ public final class AuroraSceneView extends View {
         // Optional transparent PNG foreground is composited above both rows of digits.
         if(foreground!=null){
             paint.reset();paint.setAntiAlias(true);paint.setFilterBitmap(true);
-            float scale=Math.max(390f/foreground.getWidth(),844f/foreground.getHeight());
-            float bw=foreground.getWidth()*scale,bh=foreground.getHeight()*scale;
+            float foregroundScale=Math.max(390f/foreground.getWidth(),844f/foreground.getHeight());
+            float bw=foreground.getWidth()*foregroundScale,bh=foreground.getHeight()*foregroundScale;
             c.drawBitmap(foreground,null,new RectF((390-bw)/2,(844-bh)/2,(390+bw)/2,(844+bh)/2),paint);
         }
         if(!preview){
