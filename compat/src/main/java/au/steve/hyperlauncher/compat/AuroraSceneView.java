@@ -16,6 +16,8 @@ public final class AuroraSceneView extends View {
     private final SharedPreferences prefs;
     private Bitmap background,foreground;
     private boolean preview;
+    private boolean editing;
+    private int dragClockStart;
     private String loadedBackground="",loadedForeground="";
     public AuroraSceneView(Context context,boolean preview){
         super(context);this.preview=preview;
@@ -23,6 +25,9 @@ public final class AuroraSceneView extends View {
         setLayerType(View.LAYER_TYPE_SOFTWARE,null);
         reload();
     }
+    public void setEditing(boolean value){editing=value;invalidate();}
+    public void startClockDrag(){dragClockStart=prefs.getInt("clockY",0);}
+    public void moveClock(float delta){int y=Math.max(-135,Math.min(250,dragClockStart+Math.round(delta*844f/Math.max(1,getHeight()))));prefs.edit().putInt("clockY",y).apply();invalidate();}
     private Bitmap load(String value){
         if(value==null)return null;
         try(InputStream stream=getContext().getContentResolver().openInputStream(Uri.parse(value))){
@@ -77,11 +82,21 @@ public final class AuroraSceneView extends View {
         String digits=new SimpleDateFormat(prefs.getBoolean("clock12",false)?"hhmm":"HHmm",Locale.getDefault()).format(new Date());
         int style=prefs.getInt("clockStyle",0);
         Typeface clockFace=Typeface.create(style==0?"sans-serif-condensed":style==1?"sans-serif-light":"sans-serif",style==0?Typeface.BOLD:Typeface.NORMAL);
-        float size=prefs.getInt("clockSize",160)*1.12f;
+        int preset=prefs.getInt("clockPreset",0);
+        float size=prefs.getInt("clockSize",160)*(preset==1?0.89f:1.12f);
         float top=170+prefs.getInt("clockY",0);
         int color=prefs.getInt("clockColor",0xBFD0E9FF);
-        text(c,digits.substring(0,2),195,top,size,color,clockFace,true);
-        text(c,digits.substring(2),195,top+size*0.77f,size,color,clockFace,true);
+        float x=preset==2?140:195;
+        if(preset==1)text(c,digits.substring(0,2)+":"+digits.substring(2),195,top+30,size*0.62f,color,clockFace,true);
+        else {
+            text(c,digits.substring(0,2),x,top,size,color,clockFace,true);
+            text(c,digits.substring(2),x,top+size*0.77f,size,color,clockFace,true);
+        }
+        if(editing){
+            paint.setShader(null);paint.setColor(0x668DC9FF);paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(1.5f);
+            c.drawRoundRect(new RectF(25,top-size+10,365,top+size),16,16,paint);
+            paint.setStyle(Paint.Style.FILL);
+        }
         // Optional transparent PNG foreground is composited above both rows of digits.
         if(foreground!=null){
             paint.reset();paint.setAntiAlias(true);paint.setFilterBitmap(true);
