@@ -40,6 +40,7 @@ public final class AuroraActivity extends Activity {
         super.onCreate(state);
         setShowWhenLocked(true);
         prefs = getSharedPreferences("aurora", MODE_PRIVATE);
+        getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
         getWindow().setStatusBarColor(Color.BLACK);
         getWindow().setNavigationBarColor(Color.BLACK);
         FrameLayout root = new FrameLayout(this);
@@ -50,21 +51,24 @@ public final class AuroraActivity extends Activity {
         String saved = prefs.getString("wallpaper", null);
         if (saved != null) try { wallpaper.setImageURI(Uri.parse(saved)); } catch (Exception ignored) {}
         View shade = new View(this);
-        shade.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, new int[]{0xB900102A, 0x33000B24, 0xA900071A}));
+        shade.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, new int[]{0xB9000C28, 0x08000B24, 0xD900071A}));
         root.addView(shade, new FrameLayout.LayoutParams(-1, -1));
         LinearLayout content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
         content.setGravity(Gravity.CENTER_HORIZONTAL);
         int pad = (int)(24 * getResources().getDisplayMetrics().density);
-        content.setPadding(pad, pad * 3, pad, pad);
+        content.setPadding(pad, (int)(92 * getResources().getDisplayMetrics().density), pad, pad);
         TextView heading = new TextView(this);
-        heading.setText("AURORA DEPTH  •  PREVIEW");
+        heading.setText("SATURDAY  /  AURORA");
         heading.setTextColor(0xFFC1D9FF);
-        heading.setTextSize(12);
+        heading.setTextSize(11);
+        heading.setLetterSpacing(0.24f);
         heading.setGravity(Gravity.CENTER);
         content.addView(heading);
         clock = new TextView(this);
-        clock.setTextColor(0xFF80B8FF);
+        clock.setTextColor(0xFFB2D8FF);
+        clock.setLetterSpacing(-0.09f);
+        clock.setIncludeFontPadding(false);
         clock.setTypeface(Typeface.create("sans-serif-light", Typeface.NORMAL));
         clock.setTextSize(prefs.getInt("clockSize", 88));
         clock.setGravity(Gravity.CENTER);
@@ -72,7 +76,8 @@ public final class AuroraActivity extends Activity {
         TextView date = new TextView(this);
         date.setText(new SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()).format(new Date()));
         date.setTextColor(Color.WHITE);
-        date.setTextSize(19);
+        date.setTextSize(16);
+        date.setLetterSpacing(0.07f);
         date.setGravity(Gravity.CENTER);
         content.addView(date);
         foreground = new ImageView(this);
@@ -84,49 +89,66 @@ public final class AuroraActivity extends Activity {
         // Overlay above clock; foreground must be a transparent PNG to create a depth illusion.
         View space = new View(this);
         content.addView(space, new LinearLayout.LayoutParams(1, 0, 1));
-        Button choose = new Button(this);
-        choose.setText("Choose Duchess wallpaper");
-        choose.setOnClickListener(v -> {
-            Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-            i.setType("image/*");
-            i.addCategory(Intent.CATEGORY_OPENABLE);
-            i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
-            startActivityForResult(i, PICK_PHOTO);
-        });
-        content.addView(choose);
-        Button settings = new Button(this);
-        settings.setText("Aurora settings");
-        settings.setOnClickListener(v -> startActivity(new Intent(this, AuroraSettingsActivity.class)));
-        content.addView(settings);
         TextView swipe = new TextView(this);
-        swipe.setText("⌃  Swipe up to unlock");
-        swipe.setTextColor(Color.WHITE);
-        swipe.setTextSize(18);
+        swipe.setText("⌃");
+        swipe.setTextColor(0xFFE4F1FF);
+        swipe.setTextSize(30);
         swipe.setGravity(Gravity.CENTER);
-        swipe.setPadding(0, pad, 0, pad);
         content.addView(swipe);
-        swipe.setOnClickListener(v -> requestSecureUnlock());
-        root.setOnTouchListener((v, event) -> {
-            if (event.getAction() == MotionEvent.ACTION_DOWN) {
-                touchStartY = event.getY();
-                return true;
-            }
-            if (event.getAction() == MotionEvent.ACTION_UP) {
-                if (touchStartY - event.getY() > 90 * getResources().getDisplayMetrics().density) {
-                    requestSecureUnlock();
-                }
+        TextView hint = new TextView(this);
+        hint.setText("SWIPE TO UNLOCK");
+        hint.setTextColor(0xFFC2D7F1);
+        hint.setLetterSpacing(0.25f);
+        hint.setTextSize(10);
+        hint.setGravity(Gravity.CENTER);
+        content.addView(hint);
+        TextView note = new TextView(this);
+        note.setText("Aurora visual preview · Samsung secure unlock");
+        note.setTextColor(0x99C7DDF5);
+        note.setTextSize(10);
+        note.setGravity(Gravity.CENTER);
+        note.setPadding(0,pad/2,0,0);
+        content.addView(note);
+        root.setOnTouchListener((v,event)->{
+            if(event.getAction()==MotionEvent.ACTION_DOWN){touchStartY=event.getY();return true;}
+            if(event.getAction()==MotionEvent.ACTION_UP){
+                if(touchStartY-event.getY()>65*getResources().getDisplayMetrics().density)requestSecureUnlock();
                 return true;
             }
             return true;
         });
-        TextView note = new TextView(this);
-        note.setText("Preview v0.2 — swipe up to use Samsung fingerprint, face or PIN. Automatic wake activation is not enabled.");
-        note.setTextColor(0xFFB3C7DF);
-        note.setTextSize(12);
-        note.setGravity(Gravity.CENTER);
-        content.addView(note);
+        FrameLayout.LayoutParams gearPosition = new FrameLayout.LayoutParams((int)(44*getResources().getDisplayMetrics().density),(int)(44*getResources().getDisplayMetrics().density),Gravity.TOP|Gravity.RIGHT);
+        gearPosition.topMargin=(int)(32*getResources().getDisplayMetrics().density);
+        gearPosition.rightMargin=pad/2;
+        TextView gear=new TextView(this);
+        gear.setText("⚙");
+        gear.setTextColor(0xFFE0EDFF);
+        gear.setTextSize(23);
+        gear.setGravity(Gravity.CENTER);
+        gear.setContentDescription("Aurora settings");
+        gear.setOnClickListener(v->startActivity(new Intent(this,AuroraSettingsActivity.class)));
+        root.addView(gear,gearPosition);
+        FrameLayout.LayoutParams photoPosition = new FrameLayout.LayoutParams((int)(44*getResources().getDisplayMetrics().density),(int)(44*getResources().getDisplayMetrics().density),Gravity.TOP|Gravity.LEFT);
+        photoPosition.topMargin=gearPosition.topMargin;
+        photoPosition.leftMargin=pad/2;
+        TextView photo=new TextView(this);
+        photo.setText("▧");
+        photo.setTextColor(0xFFE0EDFF);
+        photo.setTextSize(24);
+        photo.setGravity(Gravity.CENTER);
+        photo.setContentDescription("Change wallpaper");
+        photo.setOnClickListener(v->{
+            Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);
+            i.setType("image/*");i.addCategory(Intent.CATEGORY_OPENABLE);
+            i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+            startActivityForResult(i,PICK_PHOTO);
+        });
+        root.addView(photo,photoPosition);
         root.addView(content, new FrameLayout.LayoutParams(-1, -1));
         root.addView(foreground, fgParams);
+        // Keep functional shortcuts above the foreground cutout.
+        root.bringChildToFront(gear);
+        root.bringChildToFront(photo);
         setContentView(root);
     }
     private void requestSecureUnlock() {
