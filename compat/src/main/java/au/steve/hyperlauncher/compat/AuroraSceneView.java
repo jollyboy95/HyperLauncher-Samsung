@@ -121,7 +121,9 @@ public final class AuroraSceneView extends View {
         measure.setTextSize(1f);
         widest=preset==1?measure.measureText(hours+":"+minutes):
             preset==3?measure.measureText(digits):Math.max(measure.measureText(hours),measure.measureText(minutes));
-        // Editorial uses horizontally compressed, tall digits without shrinking their height.\n        float horizontalScale=preset==3?.62f:1f;\n        float fitted=Math.min(requested,maxWidth/Math.max(.01f,widest*horizontalScale));
+        // Editorial uses horizontally compressed, tall digits without shrinking their height.
+        float horizontalScale=preset==3?.62f:1f;
+        float fitted=Math.min(requested,maxWidth/Math.max(.01f,widest*horizontalScale));
         float lineHeight=fitted*.83f;
         float clockHeight=preset==0||preset==2?fitted+lineHeight:fitted;
         float groupHeight=clockHeight+48f;
@@ -132,7 +134,9 @@ public final class AuroraSceneView extends View {
         if(preset==1){
             text(c,hours+":"+minutes,195f,firstBaseline,fitted,color,clockFace,true);
         }else if(preset==3){
-            c.save();c.translate(195f,0);c.scale(horizontalScale,1f);\n            text(c,digits,0f,firstBaseline,fitted,color,clockFace,true);\n            c.restore();
+            c.save();c.translate(195f,0);c.scale(horizontalScale,1f);
+            text(c,digits,0f,firstBaseline,fitted,color,clockFace,true);
+            c.restore();
         }else{
             text(c,hours,x,firstBaseline,fitted,color,clockFace,true);
             text(c,minutes,x,firstBaseline+lineHeight,fitted,color,clockFace,true);
