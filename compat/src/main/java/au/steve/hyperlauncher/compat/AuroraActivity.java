@@ -69,7 +69,7 @@ public final class AuroraActivity extends Activity {
         clock.setTextColor(0xFFB2D8FF);
         clock.setLetterSpacing(-0.09f);
         clock.setIncludeFontPadding(false);
-        clock.setTypeface(Typeface.create("sans-serif-condensed", Typeface.BOLD));
+        applyClockStyle();
         clock.setTextSize(prefs.getInt("clockSize", 112));
         clock.setGravity(Gravity.CENTER);
         content.addView(clock);
@@ -153,6 +153,11 @@ public final class AuroraActivity extends Activity {
         root.bringChildToFront(photo);
         setContentView(root);
     }
+    private void applyClockStyle(){
+        if(clock==null)return;
+        int style=prefs.getInt("clockStyle",0);
+        clock.setTypeface(Typeface.create(style==0?"sans-serif-condensed":style==1?"sans-serif-light":"sans-serif",style==0?Typeface.BOLD:Typeface.NORMAL));
+    }
     private void requestSecureUnlock() {
         KeyguardManager km = getSystemService(KeyguardManager.class);
         if (km != null && km.isKeyguardLocked()) {
@@ -163,7 +168,7 @@ public final class AuroraActivity extends Activity {
     }
     @Override protected void onResume() {
         super.onResume();
-        if (clock != null) clock.setTextSize(prefs.getInt("clockSize",112));
+        if (clock != null) { clock.setTextSize(prefs.getInt("clockSize",112)); applyClockStyle(); }
         if (foreground != null) {
             String u=prefs.getString("foreground",null);
             foreground.setImageDrawable(null);
