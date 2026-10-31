@@ -68,9 +68,9 @@ public final class AuroraSettingsActivity extends Activity {
         });
         panel.addView(style);
         addInfo("Clock size");
-        SeekBar size=new SeekBar(this);size.setMax(60);size.setProgress(prefs.getInt("clockSize",112)-60);
+        SeekBar size=new SeekBar(this);size.setMax(120);size.setProgress(prefs.getInt("clockSize",160)-80);
         size.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){
-            public void onProgressChanged(SeekBar s,int progress,boolean user){if(user){prefs.edit().putInt("clockSize",60+progress).apply();refreshPreview();}}
+            public void onProgressChanged(SeekBar s,int progress,boolean user){if(user){prefs.edit().putInt("clockSize",80+progress).apply();refreshPreview();}}
             public void onStartTrackingTouch(SeekBar s){} public void onStopTrackingTouch(SeekBar s){}
         });panel.addView(size);
         addTitle("Wallpaper & depth");
@@ -132,9 +132,12 @@ public final class AuroraSettingsActivity extends Activity {
     }
     private void refreshPreview() {
         if(previewClock==null)return;
-        previewClock.setText(new SimpleDateFormat(prefs.getBoolean("clock12",false)?"h:mm":"HH:mm",Locale.getDefault()).format(new Date()));
+        String time=new SimpleDateFormat(prefs.getBoolean("clock12",false)?"hhmm":"HHmm",Locale.getDefault()).format(new Date());
+        previewClock.setText(time.substring(0,2)+"\\n"+time.substring(2));
         // Preview is approximately two-thirds the full-screen clock size.
-        previewClock.setTextSize(prefs.getInt("clockSize",112)*0.65f);
+        previewClock.setTextSize(prefs.getInt("clockSize",160)*0.55f);
+        previewClock.setLineSpacing(-16*getResources().getDisplayMetrics().density,0.84f);
+        previewClock.setIncludeFontPadding(false);
         int style=prefs.getInt("clockStyle",0);
         previewClock.setTypeface(Typeface.create(style==0?"sans-serif-condensed":style==1?"sans-serif-light":"sans-serif",style==0?Typeface.BOLD:Typeface.NORMAL));
         if(previewWallpaper!=null){
