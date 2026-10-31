@@ -116,7 +116,7 @@ public final class AuroraSceneView extends View {
         measure.setTypeface(clockFace);
         float x=preset==2?145f:195f;
         String hours=digits.substring(0,2),minutes=digits.substring(2);
-        float requested=size*(preset==1?.65f:preset==3?1.22f:1.12f);
+        float requested=size*(preset==1?.65f:preset==3?1.22f:1.48f);
         float maxWidth=preset==1?355f:preset==3?355f:315f;
         float widest=preset==1?measure.measureText(hours+":"+minutes):
             preset==3?measure.measureText(digits):Math.max(measure.measureText(hours),measure.measureText(minutes));
@@ -124,9 +124,9 @@ public final class AuroraSceneView extends View {
         widest=preset==1?measure.measureText(hours+":"+minutes):
             preset==3?measure.measureText(digits):Math.max(measure.measureText(hours),measure.measureText(minutes));
         // Editorial uses horizontally compressed, tall digits without shrinking their height.
-        float horizontalScale=preset==3?.62f:1f;
+        float horizontalScale=preset==3?.62f:(preset==0||preset==2?.78f:1f);
         float fitted=Math.min(requested,maxWidth/Math.max(.01f,widest*horizontalScale));
-        float lineHeight=fitted*.83f;
+        float lineHeight=fitted*.91f;
         float clockHeight=preset==0||preset==2?fitted+lineHeight:fitted;
         float groupHeight=clockHeight+48f;
         float top=Math.max(42f,Math.min(722f-groupHeight,116f+prefs.getInt("clockY",0)));
@@ -140,8 +140,11 @@ public final class AuroraSceneView extends View {
             text(c,digits,0f,firstBaseline,fitted,color,clockFace,true);
             c.restore();
         }else{
-            text(c,hours,x,firstBaseline,fitted,color,clockFace,true);
-            text(c,minutes,x,firstBaseline+lineHeight,fitted,color,clockFace,true);
+            // Condense each row without reducing its height, preserving the tall HyperOS silhouette.
+            c.save();c.translate(x,0f);c.scale(horizontalScale,1f);
+            text(c,hours,0f,firstBaseline,fitted,color,clockFace,true);
+            text(c,minutes,0f,firstBaseline+lineHeight,fitted,color,clockFace,true);
+            c.restore();
         }
         if(editing){
             paint.reset();paint.setAntiAlias(true);paint.setColor(0x668DC9FF);
@@ -153,9 +156,13 @@ public final class AuroraSceneView extends View {
         // Optional transparent PNG foreground is composited above both rows of digits.
         if(foreground!=null){
             paint.reset();paint.setAntiAlias(true);paint.setFilterBitmap(true);
-            float foregroundScale=Math.max(390f/foreground.getWidth(),844f/foreground.getHeight());
-            float bw=foreground.getWidth()*foregroundScale,bh=foreground.getHeight()*foregroundScale;
-            c.drawBitmap(foreground,null,new RectF((390-bw)/2,(844-bh)/2,(390+bw)/2,(844+bh)/2),paint);
+            // Apply the identical crop and focal-point transform to both layers.
+            // A transparent cutout matching the wallpaper canvas now stays registered.
+            WallpaperTransform t=WallpaperTransform.compute(foreground.getWidth(),foreground.getHeight(),390f,844f,
+                prefs.getFloat("wallpaperZoom",1f),prefs.getFloat("wallpaperFocusX",.5f),
+                prefs.getFloat("wallpaperFocusY",.5f));
+            c.drawBitmap(foreground,null,new RectF(t.dx,t.dy,
+                t.dx+foreground.getWidth()*t.scale,t.dy+foreground.getHeight()*t.scale),paint);
         }
         if(!preview){
             text(c,"⌃",195,772,29,0xFFE8F3FF,Typeface.DEFAULT,true);
