@@ -37,8 +37,8 @@ public class AuroraLaunchTest {
         config.prefs().edit().clear().commit();
         Bitmap solid = Bitmap.createBitmap(200, 400, Bitmap.Config.ARGB_8888);
         solid.eraseColor(Color.RED);
-        File oldMask = new File(context.getFilesDir(), "depth-old.png");
-        File currentMask = new File(context.getFilesDir(), "depth-v4-current.png");
+        File oldMask = new File(context.getFilesDir(), "depth-v4-old.png");
+        File currentMask = new File(context.getFilesDir(), "depth-v5-current.png");
         for (File file : new File[]{oldMask, currentMask}) {
             try (FileOutputStream out = new FileOutputStream(file)) {
                 solid.compress(Bitmap.CompressFormat.PNG, 100, out);

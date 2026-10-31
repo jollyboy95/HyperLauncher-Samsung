@@ -1,4 +1,4 @@
-# Aurora lock-screen feature coverage (v23)
+# Aurora lock-screen feature coverage (v24)
 
 Aurora implements lock-screen styles and controls for Samsung. It does not install Xiaomi firmware or claim complete native HyperOS parity.
 
@@ -21,7 +21,7 @@ Reference sources checked on 31 October 2026:
 - Optional automatic-on-wake via a user-enabled Accessibility service. It receives protected wake broadcasts and System UI window-state events, requests no window content or gesture capability, avoids unlocked use/calls/duplicates, and uses a transient task that closes after system authentication.
 - Saved-design thumbnail gallery: save, swipe, apply and delete up to eight local designs. Privacy settings are not part of a design.
 - List, Stack and Count notification display modes with expand/collapse, bounded scrolling, open after authentication, horizontal swipe dismissal, individual × buttons and Clear all for clearable notifications (including beyond the display limit) and locked-content redaction.
-- Real active Android media sessions: title/artist/artwork, previous/play-pause/next and seeking where supported. Notification access is required. Media details follow the notification privacy setting.
+- Real active Android media sessions, with retained idle/stopped sessions hidden and a 30-second grace period only after observed active playback pauses: title/artist/artwork, previous/play-pause/next and seeking where supported. Notification access is required. Media details follow the notification privacy setting.
 - Actual battery level and next alarm, plus configurable flashlight/camera/alarm/phone/settings shortcuts. Locked camera uses the secure camera intent.
 - Existing settings and clock position are preserved on update. Selecting a different template or resetting the editor is an explicit change.
 
@@ -46,4 +46,6 @@ This is a user-authorised lock-screen launch helper, not a screen reader. Its XM
 
 ## Verification
 
-Framework launch/resume/draw tests, all template/material combinations, editor/gallery interactions, notification redaction and stack expansion, notification actions, real media-controller routing, snapshot numeric-type round trips and preservation of existing clock settings are covered by automated tests. Dismissal tests exercise actual notification-service cancellation, protected items, disconnected access, buttons and swipes inside a scrolling list. Automatic-wake policy, lifecycle/broadcast launches, legacy receiver compatibility, limited service capabilities, draft isolation and blur math are also covered. Local visual QA uses the supplied pug wallpaper, which is not committed to the public repository.
+Framework launch/resume/draw tests, all template/material combinations, editor/gallery interactions, notification redaction and stack expansion, notification actions, real media-controller routing, media visibility/expiry and player switching, snapshot numeric-type round trips and preservation of existing clock settings are covered by automated tests. Dismissal tests exercise actual notification-service cancellation, protected items, disconnected access, buttons and swipes inside a scrolling list. Automatic-wake policy, lifecycle/broadcast launches, legacy receiver compatibility, limited service capabilities, draft isolation and blur math are also covered. Local visual QA uses the supplied pug wallpaper, which is not committed to the public repository.
+
+Version 24 adds an upper-subject inference pass for small details such as ears and hair, merging it with the body mask. Older automatic masks regenerate with the new depth-v5 cache format.

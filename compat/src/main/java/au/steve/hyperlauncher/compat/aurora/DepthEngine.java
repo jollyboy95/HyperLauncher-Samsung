@@ -100,7 +100,7 @@ public final class DepthEngine {
     }
 
     public static boolean isCurrentMask(String path) {
-        return path != null && new File(path).getName().startsWith("depth-v4-");
+        return path != null && new File(path).getName().startsWith("depth-v5-");
     }
 
     public File cachedMask(Uri wallpaper) {
@@ -140,6 +140,17 @@ public final class DepthEngine {
             for (float value : detailed) if (value >= 0.5f) { found = true; break; }
             if (found) {
                 float[] projected = region.project(detailed, width, height, source.getWidth(), source.getHeight());
+                // A tall full-subject crop still gives small ears too few model pixels.
+                // Merge an upper detail pass rather than replacing the body mask.
+                SubjectRegion upper = region.upperDetail(source.getWidth(), source.getHeight());
+                Bitmap head = Bitmap.createBitmap(source, upper.left, upper.top, upper.width(), upper.height());
+                try {
+                    float[] detail = upper.project(infer(head, height, width, classes, true), width, height,
+                            source.getWidth(), source.getHeight());
+                    for (int i = 0; i < projected.length; i++) projected[i] = Math.max(projected[i], detail[i]);
+                } finally {
+                    if (head != source) head.recycle();
+                }
                 full = MaskMath.refine(projected, source.getWidth(), source.getHeight(), threshold);
             } else {
                 full = DepthCompositor.upsampleNearest(MaskMath.refine(confidence, width, height, threshold),
@@ -166,6 +177,10 @@ public final class DepthEngine {
     }
 
     private float[] infer(Bitmap source, int height, int width, int classes) {
+        return infer(source, height, width, classes, false);
+    }
+
+    private float[] infer(Bitmap source, int height, int width, int classes, boolean softEdges) {
         Tensor input = interpreter.getInputTensor(0);
         int[] shape = input.shape();
         Bitmap scaled = Bitmap.createScaledBitmap(source, shape[2], shape[1], true);
@@ -178,7 +193,7 @@ public final class DepthEngine {
             raw.rewind();
             float[] flat = new float[height * width * classes];
             raw.asFloatBuffer().get(flat);
-            return LabelMask.selectSubject(flat, height, width, classes);
+            return LabelMask.selectSubject(flat, height, width, classes, softEdges);
         } finally {
             if (scaled != source) scaled.recycle();
         }
@@ -217,7 +232,7 @@ public final class DepthEngine {
     }
 
     private File maskFile(Uri wallpaper) {
-        String name = "depth-v4-" + Integer.toHexString(String.valueOf(wallpaper).hashCode()) + ".png";
+        String name = "depth-v5-" + Integer.toHexString(String.valueOf(wallpaper).hashCode()) + ".png";
         return new File(context.getFilesDir(), name);
     }
 

@@ -37,6 +37,10 @@ public final class LabelMask {
      * @return per-pixel confidence in 0..1 for the chosen foreground subject
      */
     public static float[] selectSubject(float[] logits, int height, int width, int classes) {
+        return selectSubject(logits, height, width, classes, false);
+    }
+
+    public static float[] selectSubject(float[] logits, int height, int width, int classes, boolean softEdges) {
         if (height <= 0 || width <= 0 || classes <= 1 || logits == null
                 || logits.length != (long) height * width * classes) {
             throw new IllegalArgumentException("Invalid logits");
@@ -64,12 +68,14 @@ public final class LabelMask {
         float[] confidence = new float[pixels];
         if (chosen <= 0) return confidence;
         for (int i = 0; i < pixels; i++) {
-            if (argmax[i] == chosen) {
-                double sum = 0;
-                for (int c = 0; c < classes; c++) sum += Math.exp(logits[i * classes + c] - peak[i]);
-                confidence[i] = (float) (1.0 / sum);
-            }
+            if (!softEdges && argmax[i] != chosen) continue;
+            // Keep soft evidence at boundaries, even if background narrowly wins.
+            // Hard argmax gating erased dark ears before edge refinement could see them.
+            double sum = 0;
+            for (int c = 0; c < classes; c++) sum += Math.exp(logits[i * classes + c] - peak[i]);
+            confidence[i] = (float) (Math.exp(logits[i * classes + chosen] - peak[i]) / sum);
         }
+
         return confidence;
     }
 

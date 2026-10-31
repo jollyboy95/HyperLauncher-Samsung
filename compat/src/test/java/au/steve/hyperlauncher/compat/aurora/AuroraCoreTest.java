@@ -60,6 +60,15 @@ public class AuroraCoreTest {
         assertEquals(LabelMask.DOG, LabelMask.chooseClass(new int[]{40,0,0,0,0,0,0,0,0,0,0,0,20,0,0,0,0,0,0,0,0}, 64));
     }
 
+    @Test public void uncertainSubjectEdgesRetainSoftConfidence() {
+        float[] logits = new float[8 * 8 * 21];
+        java.util.Arrays.fill(logits, -15f);
+        for (int i = 0; i < 64; i++) logits[i * 21 + LabelMask.DOG] = 5f;
+        logits[0] = 5.1f; // Background narrowly wins at one dark boundary pixel.
+        float edge = LabelMask.selectSubject(logits, 8, 8, 21, true)[0];
+        assertTrue(edge > .45f && edge < .5f);
+    }
+
     @Test public void bundledOutputUsesLastDimensionForClasses() {
         assertArrayEquals(new int[]{257, 257, 21}, LabelMask.hwcDimensions(new int[]{1, 257, 257, 21}));
         assertThrows(IllegalArgumentException.class,

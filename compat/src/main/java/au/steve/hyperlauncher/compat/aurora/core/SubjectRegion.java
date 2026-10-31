@@ -37,6 +37,13 @@ public final class SubjectRegion {
         return new SubjectRegion(l, t, r, b);
     }
 
+    /** Extra upper-subject detail keeps small ears and hair visible in tall subjects. */
+    public SubjectRegion upperDetail(int imageW, int imageH) {
+        int extra = Math.max(2, width() / 12);
+        return new SubjectRegion(Math.max(0, left - extra), Math.max(0, top - extra),
+                Math.min(imageW, right + extra), Math.min(imageH, top + Math.round(height() * .55f)));
+    }
+
     /** Bilinear sampling avoids square pixel steps around the subject at display resolution. */
     public float[] project(float[] mask, int width, int height, int imageW, int imageH) {
         if (mask == null || width <= 0 || height <= 0 || mask.length != width * height

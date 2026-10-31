@@ -152,14 +152,14 @@ public class AuroraFeatureTest {
         shadowController.setMetadata(new android.media.MediaMetadata.Builder()
                 .putString(android.media.MediaMetadata.METADATA_KEY_TITLE, "Actual song").build());
         shadowController.setPlaybackState(new android.media.session.PlaybackState.Builder()
-                .setState(android.media.session.PlaybackState.STATE_PAUSED,0,0)
-                .setActions(android.media.session.PlaybackState.ACTION_PLAY).build());
+                .setState(android.media.session.PlaybackState.STATE_PLAYING,0,0)
+                .setActions(android.media.session.PlaybackState.ACTION_PAUSE).build());
         Shadows.shadowOf(context.getSystemService(android.media.session.MediaSessionManager.class)).addController(session.getController());
         LockMediaController media = new LockMediaController(context, () -> {});
         media.start(); assertTrue(media.hasSession());
         assertEquals("Actual song", media.metadata().getString(android.media.MediaMetadata.METADATA_KEY_TITLE));
         media.playPause(); org.robolectric.shadows.ShadowLooper.idleMainLooper();
-        assertEquals(android.media.session.PlaybackState.ACTION_PLAY,
+        assertEquals(android.media.session.PlaybackState.ACTION_PAUSE,
                 Shadows.shadowOf(session.getController().getTransportControls()).getLastPerformedAction());
         media.seek(12000);
         assertEquals(12000, Shadows.shadowOf(session.getController().getTransportControls()).getSeekToPositionMs());
