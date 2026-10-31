@@ -53,7 +53,7 @@ public final class AuroraActivity extends Activity {
         camera.setContentDescription("Open camera");
         camera.setOnClickListener(v->{
             try{startActivity(new Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA));}
-            catch(Exception ex){android.widget.Toast.makeText(this,"Camera unavailable",0).show();}
+            catch(Exception ex){android.widget.Toast.makeText(this,"Camera unavailable",android.widget.Toast.LENGTH_SHORT).show();}
         });
         setContentView(root);
     }
@@ -81,9 +81,9 @@ public final class AuroraActivity extends Activity {
                     }
                 }
             }
-            if(torchId==null){android.widget.Toast.makeText(this,"Flashlight unavailable",0).show();return;}
+            if(torchId==null){android.widget.Toast.makeText(this,"Flashlight unavailable",android.widget.Toast.LENGTH_SHORT).show();return;}
             cameras.setTorchMode(torchId,!torchOn);torchOn=!torchOn;
-        }catch(Exception ex){android.widget.Toast.makeText(this,"Flashlight unavailable",0).show();}
+        }catch(Exception ex){android.widget.Toast.makeText(this,"Flashlight unavailable",android.widget.Toast.LENGTH_SHORT).show();}
     }
     private void unlock(){
         KeyguardManager km=getSystemService(KeyguardManager.class);
