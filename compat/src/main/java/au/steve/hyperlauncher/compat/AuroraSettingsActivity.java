@@ -55,7 +55,7 @@ public final class AuroraSettingsActivity extends Activity {
         createPreview();
         addInfo("Changes appear here immediately. Your wallpaper and optional foreground cutout are shown in the preview.");
         addTitle("Clock layout");
-        String[] layouts={"Depth Stack","Minimal Horizontal","Editorial Offset"};
+        String[] layouts={"Depth Stack","Minimal Horizontal","Editorial Offset","Tall Editorial"};
         Spinner layoutPicker=new Spinner(this);
         layoutPicker.setAdapter(new ArrayAdapter<String>(this,android.R.layout.simple_spinner_dropdown_item,layouts));
         layoutPicker.setSelection(prefs.getInt("clockPreset",0));
@@ -109,8 +109,13 @@ public final class AuroraSettingsActivity extends Activity {
         button("Reset clock layout").setOnClickListener(v->{
             prefs.edit().putInt("clockPreset",0).putInt("clockStyle",0)
                 .putInt("clockSize",145).putInt("clockY",0).putInt("clockColor",0xBFD0E9FF).apply();
+            layoutPicker.setSelection(0);
+            style.setSelection(0);
+            colourPicker.setSelection(0);
+            size.setProgress(65);
+            position.setProgress(120);
             refreshPreview();
-            Toast.makeText(this,"Clock layout reset. Reopen Settings to refresh controls.",Toast.LENGTH_LONG).show();
+            Toast.makeText(this,"Clock layout reset",Toast.LENGTH_SHORT).show();
         });
         addInfo("Clock vertical position");
         SeekBar position=new SeekBar(this);position.setMax(240);
@@ -148,7 +153,9 @@ public final class AuroraSettingsActivity extends Activity {
         float d=getResources().getDisplayMetrics().density;
         scenePreview=new AuroraSceneView(this,true);
         int width=getResources().getDisplayMetrics().widthPixels-(int)(44*d);
-        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,(int)(width*844f/390f));
+        int previewWidth=Math.min(width,(int)(260*d));
+        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(previewWidth,(int)(previewWidth*844f/390f));
+        lp.gravity=Gravity.CENTER_HORIZONTAL;
         panel.addView(scenePreview,lp);
     }
     private void refreshPreview(){if(scenePreview!=null)scenePreview.reload();}
