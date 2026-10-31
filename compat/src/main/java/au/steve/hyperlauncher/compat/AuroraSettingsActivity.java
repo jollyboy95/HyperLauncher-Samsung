@@ -1,6 +1,11 @@
 package au.steve.hyperlauncher.compat;
 
 import android.app.Activity;
+import android.app.DownloadManager;
+import android.content.Context;
+import android.os.Environment;
+import android.provider.Settings;
+import org.json.JSONArray;
 import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
@@ -25,6 +30,8 @@ public final class AuroraSettingsActivity extends Activity {
     private LinearLayout panel;
     private SharedPreferences prefs;
     private TextView updateStatus;
+    private Button downloadButton;
+    private String availableApk;
     private TextView previewClock;
     private ImageView previewWallpaper;
     private ImageView previewForeground;
@@ -67,7 +74,10 @@ public final class AuroraSettingsActivity extends Activity {
         addTitle("Software update");
         addInfo("Installed version: "+BuildConfig.VERSION_NAME+" ("+BuildConfig.VERSION_CODE+"). Updates must be signed with Aurora's permanent signing key.");
         updateStatus=new TextView(this);updateStatus.setTextColor(Color.WHITE);panel.addView(updateStatus);
-        button("Check GitHub Releases").setOnClickListener(v->checkUpdates());
+        button("Check for updates").setOnClickListener(v->checkUpdates());
+        downloadButton=button("Download & install update");
+        downloadButton.setEnabled(false);
+        downloadButton.setOnClickListener(v->downloadUpdate());
         button("Open releases").setOnClickListener(v->startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(RELEASE_PAGE))));
         button("Back to Aurora").setOnClickListener(v->finish());
     }
@@ -127,27 +137,67 @@ public final class AuroraSettingsActivity extends Activity {
     }
     @Override protected void onResume(){super.onResume();previewHandler.removeCallbacks(previewTicker);previewHandler.post(previewTicker);}
     @Override protected void onPause(){previewHandler.removeCallbacks(previewTicker);super.onPause();}
+    private void downloadUpdate() {
+        if(availableApk==null)return;
+        if(!getPackageManager().canRequestPackageInstalls()){
+            updateStatus.setText("Allow Aurora to install unknown apps, then try again.");
+            startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,Uri.parse("package:"+getPackageName())));
+            return;
+        }
+        try {
+            DownloadManager.Request request=new DownloadManager.Request(Uri.parse(availableApk));
+            request.setTitle("Aurora Depth update");
+            request.setMimeType("application/vnd.android.package-archive");
+            request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+            request.setDestinationInExternalFilesDir(this,Environment.DIRECTORY_DOWNLOADS,"aurora-update.apk");
+            DownloadManager manager=(DownloadManager)getSystemService(DOWNLOAD_SERVICE);
+            long id=manager.enqueue(request);
+            updateStatus.setText("Downloading signed APK. Tap the completed download notification to install and confirm with Android. Download ID: "+id);
+            downloadButton.setEnabled(false);
+        }catch(Exception e){updateStatus.setText("Unable to download update. Open Releases instead.");}
+    }
     private void checkUpdates() {
         updateStatus.setText("Checking releases…");
+        downloadButton.setEnabled(false);
         new Thread(()->{
             String result;
+            String apkUrl=null;
             try {
                 HttpURLConnection c=(HttpURLConnection)new URL(RELEASE_API).openConnection();
-                c.setConnectTimeout(8000);c.setReadTimeout(8000);c.setRequestProperty("Accept","application/vnd.github+json");
+                c.setConnectTimeout(8000);c.setReadTimeout(8000);
+                c.setRequestProperty("Accept","application/vnd.github+json");
                 c.setRequestProperty("User-Agent","AuroraDepth-Android");
                 int status=c.getResponseCode();
-                if(status==404) result="No published Aurora release yet. The signed APKs in Actions are build artifacts, not GitHub Releases.";
-                else if(status==403) result="GitHub API access is restricted or rate-limited (HTTP 403). Try again later or open Releases.";
-                else if(status!=200) result="Update check unavailable (HTTP "+status+").";
+                if(status==404)result="No published Aurora release yet. Signed Actions artifacts are not Releases.";
+                else if(status==403)result="GitHub API rate limit or access restriction (403). Try again later.";
+                else if(status!=200)result="Update check unavailable (HTTP "+status+").";
                 else {
-                    ByteArrayOutputStream out=new ByteArrayOutputStream();byte[] buf=new byte[4096];int n;
-                    try(InputStream in=c.getInputStream()){while((n=in.read(buf))!=-1 && out.size()<65536)out.write(buf,0,n);}
+                    ByteArrayOutputStream out=new ByteArrayOutputStream();
+                    byte[] buf=new byte[4096];int n;
+                    try(InputStream in=c.getInputStream()){
+                        while((n=in.read(buf))!=-1 && out.size()<65536)out.write(buf,0,n);
+                    }
                     JSONObject release=new JSONObject(out.toString("UTF-8"));
-                    result="Latest published release: "+release.optString("tag_name","unknown")+"\nOpen releases to download. Installation still requires Android confirmation.";
+                    String tag=release.optString("tag_name","");
+                    int remote=-1;
+                    if(tag.matches("aurora-v[0-9]+"))remote=Integer.parseInt(tag.substring(8));
+                    if(remote<=BuildConfig.VERSION_CODE)result="Aurora is up to date: "+BuildConfig.VERSION_NAME;
+                    else {
+                        JSONArray assets=release.optJSONArray("assets");
+                        if(assets!=null)for(int i=0;i<assets.length();i++){
+                            JSONObject asset=assets.optJSONObject(i);
+                            if(asset!=null && asset.optString("name").endsWith(".apk")){
+                                apkUrl=asset.optString("browser_download_url",null);
+                                break;
+                            }
+                        }
+                        result=apkUrl==null?"New release "+tag+" found, but no APK is attached.":"Update available: "+tag+"\n"+release.optString("body","")+"\nTap Download & install.";
+                    }
                 }
                 c.disconnect();
-            }catch(Exception e){result="Unable to check for updates. Check your internet connection.";}
-            String message=result;runOnUiThread(()->updateStatus.setText(message));
+            }catch(Exception e){result="Unable to check for updates. Check your connection.";}
+            String message=result,found=apkUrl;
+            runOnUiThread(()->{availableApk=found;downloadButton.setEnabled(found!=null);updateStatus.setText(message);});
         }).start();
     }
     @Override protected void onActivityResult(int request,int result,Intent data) {
