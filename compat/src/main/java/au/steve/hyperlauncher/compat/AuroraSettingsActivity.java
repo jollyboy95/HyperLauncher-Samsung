@@ -113,7 +113,6 @@ public final class AuroraSettingsActivity extends Activity {
             style.setSelection(0);
             colourPicker.setSelection(0);
             size.setProgress(65);
-            position.setProgress(120);
             refreshPreview();
             Toast.makeText(this,"Clock layout reset",Toast.LENGTH_SHORT).show();
         });
@@ -124,6 +123,10 @@ public final class AuroraSettingsActivity extends Activity {
             public void onProgressChanged(SeekBar s,int value,boolean user){if(user){prefs.edit().putInt("clockY",scenePreview.safeClockY(value-120)).apply();refreshPreview();}}
             public void onStartTrackingTouch(SeekBar s){}public void onStopTrackingTouch(SeekBar s){}
         });panel.addView(position);
+        Switch autoColour=new Switch(this);autoColour.setText("Match clock colour to wallpaper");autoColour.setTextColor(Color.WHITE);
+        autoColour.setChecked(prefs.getBoolean("autoClockColor",false));
+        autoColour.setOnCheckedChangeListener((v,c)->{prefs.edit().putBoolean("autoClockColor",c).apply();refreshPreview();});
+        panel.addView(autoColour);
         addTitle("Wallpaper & depth");
         addInfo("Use a transparent PNG cutout aligned to the original wallpaper to place your subject in front of the clock. Automatic background removal is not included yet.");
         button("Choose wallpaper").setOnClickListener(v->{
