@@ -59,9 +59,9 @@ public class AuroraFeatureTest {
 
     @Test public void allTemplatesAndMaterialsRenderAcrossPhoneSizes() {
         AuroraConfig config = config();
-        for (int preset=0; preset<13; preset++) {
+        for (int preset=0; preset<19; preset++) {
             config.applyPreset(preset);
-            for (int material=0; material<4; material++) {
+            for (int material=0; material<5; material++) {
                 config.prefs().edit().putInt("clockMaterial", material).putFloat("clockStretch", 1.3f)
                         .putBoolean("showSeconds", true).commit();
                 AuroraSceneView scene = new AuroraSceneView(RuntimeEnvironment.getApplication(), true);
