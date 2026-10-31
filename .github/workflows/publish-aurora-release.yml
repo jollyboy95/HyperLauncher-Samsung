@@ -1,0 +1,60 @@
+name: Publish Aurora signed update
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+          log-accepted-android-sdk-licenses: false
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Restore permanent signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.AURORA_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.AURORA_STORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.AURORA_KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.AURORA_KEY_ALIAS }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$KEYSTORE_B64" && test -n "$STORE_PASSWORD" && test -n "$KEY_PASSWORD" && test -n "$KEY_ALIAS"
+          printf '%s' "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/aurora-release.jks"
+          echo "AURORA_KEYSTORE_PATH=$RUNNER_TEMP/aurora-release.jks" >> "$GITHUB_ENV"
+      - name: Test and build signed APK
+        env:
+          AURORA_STORE_PASSWORD: ${{ secrets.AURORA_STORE_PASSWORD }}
+          AURORA_KEY_PASSWORD: ${{ secrets.AURORA_KEY_PASSWORD }}
+          AURORA_KEY_ALIAS: ${{ secrets.AURORA_KEY_ALIAS }}
+        run: gradle --no-daemon :compat:testDebugUnitTest :compat:lintDebug :compat:assembleRelease
+      - name: Prepare versioned release
+        shell: bash
+        run: |
+          set -euo pipefail
+          CODE=$(sed -n 's/.*versionCode \([0-9][0-9]*\).*/\1/p' compat/build.gradle | head -1)
+          test -n "$CODE"
+          echo "RELEASE_TAG=aurora-v$CODE" >> "$GITHUB_ENV"
+          cp compat/build/outputs/apk/release/*.apk AuroraDepth-v"$CODE"-signed.apk
+          sha256sum AuroraDepth-v"$CODE"-signed.apk > SHA256SUMS.txt
+      - name: Publish release with signed APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release create "$RELEASE_TAG" AuroraDepth-v*-signed.apk SHA256SUMS.txt \
+            --title "Aurora Depth $RELEASE_TAG" \
+            --notes "Signed Aurora Depth preview update. Android confirms installation. Preserve the same permanent signing key for future upgrades." \
+            --prerelease \
+            --target "$GITHUB_SHA"
