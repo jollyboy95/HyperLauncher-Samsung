@@ -51,3 +51,9 @@ https://github.com/Mods-Center/HyperOS-AOD/releases/tag/V3
 - Useful for mapping styles and studying the already supplied binary, not a portable AOD implementation or a complete HyperOS 4 UI specification. No new download, execution or installation was needed.
 
 No Aurora code change or new APK was required for this source review. v26 remains the latest validated GitHub-built release; complete settings restyling remains outstanding.
+
+### Direct review of ColdP/HyperChanger
+
+Reviewed original commit c84c224b2285590604e9e30e896a9a379e07c293 independently of the earlier copy. The original has substantially more settings/features. Its app/build.gradle.kts uses Miuix UI, preferences, icons and blur libraries at version 0.9.4, with Compose. MainActivity uses MiuixTheme and light/dark/dynamic palette choices. NotificationStackBlurSettings contains a configurable stack-depth blur policy; this is custom module behavior, not evidence of stock Xiaomi scroll physics. LockscreenWidget targets Xiaomi clock DataUtils; SettingsAppearanceSettings concerns modification of Xiaomi Settings and should not be confused with the module's own settings UI.
+
+The most actionable independent dependency for a Samsung-compatible settings redesign is https://github.com/compose-miuix-ui/miuix — an Apache-2.0 Compose UI library. Its components can be evaluated separately from HyperChanger's AGPL application code and Xiaomi hooks. Aurora currently uses Java Views, so adopting it would require a deliberate Kotlin/Compose settings migration and GitHub build/interaction validation. No dependency or application code was changed during this review.
