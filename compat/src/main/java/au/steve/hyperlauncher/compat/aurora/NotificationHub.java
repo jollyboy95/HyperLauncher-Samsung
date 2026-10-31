@@ -1,6 +1,8 @@
 package au.steve.hyperlauncher.compat.aurora;
 
 import android.app.Notification;
+import android.app.PendingIntent;
+import java.util.function.Consumer;
 import android.os.Handler;
 import android.os.Looper;
 import android.service.notification.StatusBarNotification;
@@ -20,9 +22,18 @@ public final class NotificationHub {
         public final String text;
         public final long when;
         public final android.graphics.drawable.Icon icon;
+        public final PendingIntent contentIntent;
+        public final boolean dismissible;
 
         public Item(String key, String packageName, String appName, String title, String text, long when,
                     android.graphics.drawable.Icon icon) {
+            this(key, packageName, appName, title, text, when, icon, null, true);
+        }
+
+        public Item(String key, String packageName, String appName, String title, String text, long when,
+                    android.graphics.drawable.Icon icon, PendingIntent contentIntent, boolean dismissible) {
+            this.contentIntent = contentIntent;
+            this.dismissible = dismissible;
             this.key = key;
             this.packageName = packageName;
             this.appName = appName;
@@ -42,6 +53,12 @@ public final class NotificationHub {
     private final CopyOnWriteArrayList<Listener> listeners = new CopyOnWriteArrayList<>();
     private final Handler main = new Handler(Looper.getMainLooper());
     private volatile boolean connected;
+    private Consumer<String> dismissAction;
+
+    public void setDismissAction(Consumer<String> action) { dismissAction = action; }
+    public void dismiss(Item item) {
+        if (item.dismissible && dismissAction != null) dismissAction.accept(item.key);
+    }
 
     public static NotificationHub get() {
         return INSTANCE;
@@ -69,7 +86,7 @@ public final class NotificationHub {
         if (text == null) text = n.extras.getCharSequence(Notification.EXTRA_BIG_TEXT);
         Item item = new Item(sbn.getKey(), sbn.getPackageName(), appName == null ? sbn.getPackageName() : appName,
                 title == null ? "" : title.toString(), text == null ? "" : text.toString(),
-                n.when == 0 ? sbn.getPostTime() : n.when, n.getSmallIcon());
+                n.when == 0 ? sbn.getPostTime() : n.when, n.getSmallIcon(), n.contentIntent, sbn.isClearable());
         synchronized (items) {
             items.remove(item.key);
             items.put(item.key, item);
@@ -87,7 +104,7 @@ public final class NotificationHub {
     }
 
     public List<Item> snapshot() {
-        synchronized (items) { return new ArrayList<>(items.values()); }
+        synchronized (items) { List<Item> result = new ArrayList<>(items.values()); java.util.Collections.reverse(result); return result; }
     }
 
     public void addListener(Listener listener) {

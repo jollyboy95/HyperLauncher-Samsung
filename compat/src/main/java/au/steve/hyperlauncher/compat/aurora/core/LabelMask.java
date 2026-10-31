@@ -81,7 +81,7 @@ public final class LabelMask {
         int best = 0;
         int high = minArea - 1;
         for (int c = 1; c < counts.length; c++) {
-            if (isFurniture(c)) continue;
+            // Cars, plants and other VOC objects can also sit in front of the clock.
             if (counts[c] > high) {
                 high = counts[c];
                 best = c;

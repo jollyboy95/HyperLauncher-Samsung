@@ -33,12 +33,21 @@ public final class ClockLayout {
     public static ClockLayout compute(int preset, float canvasW, float canvasH, float clockSize,
                                       float clockY, float widthWeight, float spacing,
                                       float hoursUnitWidth, float minutesUnitWidth, float pairUnitWidth) {
+        return compute(preset, canvasW, canvasH, clockSize, clockY, widthWeight, spacing,
+                hoursUnitWidth, minutesUnitWidth, pairUnitWidth, 1f, 0f);
+    }
+
+    public static ClockLayout compute(int preset, float canvasW, float canvasH, float clockSize,
+                                      float clockY, float widthWeight, float spacing,
+                                      float hoursUnitWidth, float minutesUnitWidth, float pairUnitWidth,
+                                      float heightScale, float horizontalOffset) {
         boolean stacked = preset == 0 || preset == 2 || preset == 4;
         boolean showColon = preset == 1;
         boolean editorialFour = preset == 3;
         float hScale = stacked ? (0.56f + widthWeight * 0.24f)
                 : editorialFour ? (0.48f + widthWeight * 0.16f) : (0.78f + widthWeight * 0.16f);
-        float vScale = stacked ? 1.40f : editorialFour ? 1.58f : 1.14f;
+        float vScale = (stacked ? 1.40f : editorialFour ? 1.58f : 1.14f)
+                * Math.max(.6f, Math.min(1.6f, heightScale));
         float requested = canvasH * (stacked ? 0.18f : editorialFour ? 0.24f : 0.14f) * clockSize / 168f;
         requested = Math.max(canvasH * 0.07f, Math.min(canvasH * 0.31f, requested));
         float maxWidth = canvasW * (preset == 2 ? 0.64f : editorialFour ? 0.88f : 0.72f);
@@ -51,7 +60,7 @@ public final class ClockLayout {
                 group + canvasH * 0.045f, canvasH, canvasH * 0.045f, canvasH * 0.20f);
         float dateY = top;
         float first = dateY + canvasH * 0.030f + digitHeight;
-        float x = preset == 2 ? canvasW * 0.34f : canvasW * 0.5f;
+        float x = (preset == 2 ? canvasW * 0.34f : canvasW * 0.5f) + canvasW * horizontalOffset;
         return new ClockLayout(x, dateY, x, first, fitted, gap, hScale, vScale, stacked, showColon, editorialFour);
     }
 }

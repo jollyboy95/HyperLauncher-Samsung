@@ -1,6 +1,13 @@
 package au.steve.hyperlauncher.compat;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.widget.EditText;
+import android.widget.ImageView;
+import android.view.ScaleGestureDetector;
+import au.steve.hyperlauncher.compat.aurora.SavedLooks;
 import android.app.DownloadManager;
 import android.content.Intent;
 import android.graphics.Color;
@@ -37,13 +44,14 @@ import org.json.JSONObject;
 public final class AuroraSettingsActivity extends Activity {
     private static final String RELEASE_API = "https://api.github.com/repos/jollyboy95/HyperLauncher-Samsung/releases/latest";
     private static final String RELEASE_PAGE = "https://github.com/jollyboy95/HyperLauncher-Samsung/releases";
-    private static final String[] PRESETS = {"Depth Stack", "Horizon", "Offset", "Editorial", "Soft Stack"};
-    private static final String[] TABS = {"Clock", "Colour", "Depth", "Wallpaper", "Effects"};
+    private static final String[] PRESETS = {"Depth Stack", "Horizon", "Offset", "Editorial", "Soft Stack", "Split Outline", "Poster", "Staggered", "Rotated"};
+    private static final String[] TABS = {"Clock", "Colour", "Depth", "Wallpaper", "Features", "Designs"};
     private static final int[] CLOCK_COLOURS = {0xE8F4FBFF, 0xF2FFFFFF, 0xF2F3D5B0, 0xF2F5B6C9, 0xE8C9E4FF};
     private static final String[] COLOUR_NAMES = {"Ice", "Pearl", "Champagne", "Rose", "Lilac"};
 
     private AuroraConfig config;
     private AuroraSceneView preview;
+    private AuroraWallpaperHost wallpaperHost;
     private LinearLayout sheet;
     private TextView depthStatus;
     private TextView updateStatus;
@@ -55,7 +63,7 @@ public final class AuroraSettingsActivity extends Activity {
     private final Runnable previewTicker = new Runnable() {
         public void run() {
             if (preview != null) preview.invalidate();
-            previewHandler.postDelayed(this, 15000);
+            previewHandler.postDelayed(this, config.showSeconds() ? 1000 : 10000);
         }
     };
 
@@ -66,18 +74,28 @@ public final class AuroraSettingsActivity extends Activity {
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(0xFF070B12);
 
-        preview = new AuroraSceneView(this, true);
+        wallpaperHost = new AuroraWallpaperHost(this, true);
+        preview = wallpaperHost.scene;
         preview.setEditing(true);
+        ScaleGestureDetector pinch = new ScaleGestureDetector(this, new ScaleGestureDetector.SimpleOnScaleGestureListener() {
+            @Override public boolean onScale(ScaleGestureDetector detector) {
+                int size = Math.max(80, Math.min(220, Math.round(config.clockSize() * detector.getScaleFactor())));
+                config.prefs().edit().putInt("clockSize", size).apply(); preview.reload(); return true;
+            }
+        });
         preview.setOnTouchListener(new View.OnTouchListener() {
-            float down;
+            float down, downX;
+            boolean scaling;
             public boolean onTouch(View v, MotionEvent e) {
+                pinch.onTouchEvent(e);
+                if (e.getPointerCount() > 1) { scaling = true; return true; }
                 if (e.getAction() == MotionEvent.ACTION_DOWN) {
-                    down = e.getY();
+                    down = e.getY(); downX = e.getX(); scaling = false;
                     preview.startClockDrag();
                     return true;
                 }
-                if (e.getAction() == MotionEvent.ACTION_MOVE) {
-                    preview.moveClock(e.getY() - down);
+                if (e.getAction() == MotionEvent.ACTION_MOVE && !scaling) {
+                    preview.moveClock(e.getX() - downX, e.getY() - down);
                     return true;
                 }
                 return e.getAction() == MotionEvent.ACTION_UP;
@@ -85,7 +103,7 @@ public final class AuroraSettingsActivity extends Activity {
         });
         FrameLayout.LayoutParams pp = new FrameLayout.LayoutParams(-1, -1);
         pp.bottomMargin = dp(312);
-        root.addView(preview, pp);
+        root.addView(wallpaperHost, pp);
 
         LinearLayout chrome = new LinearLayout(this);
         chrome.setOrientation(LinearLayout.VERTICAL);
@@ -161,7 +179,8 @@ public final class AuroraSettingsActivity extends Activity {
         else if (index == 1) colourSheet();
         else if (index == 2) depthSheet();
         else if (index == 3) wallpaperSheet();
-        else effectsSheet();
+        else if (index == 4) effectsSheet();
+        else designsSheet();
     }
 
     private void clockSheet() {
@@ -181,6 +200,15 @@ public final class AuroraSettingsActivity extends Activity {
             config.prefs().edit().putFloat("clockSpacing", v / 100f).apply();
             preview.reload();
         }));
+        sheet.addView(slider("Vertical stretch", Math.round((config.clockStretch() - .6f) * 100), 100, v -> {
+            config.prefs().edit().putFloat("clockStretch", .6f + v / 100f).apply(); preview.reload();
+        }));
+        sheet.addView(choiceRow("Date", new String[]{"Short", "Full", "Numeric", "Hidden"}, config.dateStyle(), i -> {
+            config.prefs().edit().putInt("dateStyle", i).apply(); preview.reload();
+        }));
+        sheet.addView(toggle("Show seconds", config.showSeconds(), on -> {
+            config.prefs().edit().putBoolean("showSeconds", on).apply(); preview.reload();
+        }));
         sheet.addView(toggle("12-hour clock", config.clock12(), c -> {
             config.prefs().edit().putBoolean("clock12", c).apply();
             preview.reload();
@@ -198,6 +226,28 @@ public final class AuroraSettingsActivity extends Activity {
     }
 
     private void colourSheet() {
+        String[] materials = {"Match clock", "Filled", "Glass", "Outline", "Gradient"};
+        sheet.addView(choiceRow("Hours", materials, config.hoursMaterial() + 1, i -> {
+            config.prefs().edit().putInt("hoursMaterial", i - 1).apply(); preview.reload();
+        }));
+        sheet.addView(choiceRow("Minutes", materials, config.minutesMaterial() + 1, i -> {
+            config.prefs().edit().putInt("minutesMaterial", i - 1).apply(); preview.reload();
+        }));
+        sheet.addView(choiceRow("Clock material", new String[]{"Translucent", "Glass", "Outline", "Gradient"},
+                config.clockMaterial(), i -> {
+                    config.prefs().edit().putInt("clockMaterial", i).apply(); preview.reload();
+                }));
+        sheet.addView(action("Custom colour", v -> {
+            EditText input = new EditText(this); input.setSingleLine(true);
+            input.setText(String.format("#%06X", config.clockColor() & 0xFFFFFF));
+            new AlertDialog.Builder(this).setTitle("Clock colour · #RRGGBB").setView(input)
+                    .setPositiveButton("Apply", (dialog, which) -> {
+                        try {
+                            int color = Color.parseColor(input.getText().toString());
+                            config.prefs().edit().putInt("clockColor", color).putBoolean("autoClockColor", false).apply(); preview.reload();
+                        } catch (IllegalArgumentException invalid) { Toast.makeText(this, "Use a colour such as #A8D7FF", Toast.LENGTH_SHORT).show(); }
+                    }).setNegativeButton("Cancel", null).show();
+        }));
         sheet.addView(toggle("Wallpaper-aware colour", config.autoClockColor(), c -> {
             config.prefs().edit().putBoolean("autoClockColor", c).apply();
             preview.reload();
@@ -217,6 +267,9 @@ public final class AuroraSettingsActivity extends Activity {
     }
 
     private void depthSheet() {
+        sheet.addView(toggle("Poster outline above subject", config.outlineOverSubject(), on -> {
+            config.prefs().edit().putBoolean("outlineOverSubject", on).apply(); preview.reload();
+        }));
         depthStatus = label(statusText(), 13, 0xFFE3EEF8, false);
         depthStatus.setPadding(0, 0, 0, dp(8));
         sheet.addView(depthStatus);
@@ -232,11 +285,19 @@ public final class AuroraSettingsActivity extends Activity {
             preview.reload();
             depthStatus.setText("Cutout removed");
         }));
-        sheet.addView(info("Automatic depth uses an on-device DeepLab model trained on PASCAL VOC, including dogs. Duchess photos are supported. Processing runs in the background."));
+        sheet.addView(info("On-device depth supports people, pets, vehicles, plants and other recognised objects. For scenes the model cannot separate, choose a transparent PNG cutout. Processing stays on your phone."));
     }
 
     private void wallpaperSheet() {
-        sheet.addView(action("Choose wallpaper", v -> pick(102, "image/*")));
+        sheet.addView(action("Choose photo wallpaper", v -> pick(102, "image/*")));
+        sheet.addView(action("Choose video wallpaper", v -> pick(103, "video/*")));
+        sheet.addView(action("Use photo instead of video", v -> {
+            config.prefs().edit().remove("videoWallpaper").apply(); wallpaperHost.reload();
+        }));
+        sheet.addView(toggle("Gentle photo motion", config.photoMotion(), on -> {
+            config.prefs().edit().putBoolean("photoMotion", on).apply(); preview.reload();
+        }));
+        sheet.addView(info("Videos loop silently. Depth cutouts and glass clock material apply to photos. Photo motion follows the phone’s animation setting."));
         sheet.addView(slider("Zoom", Math.round((config.wallpaperZoom() - 1f) * 100), 80, v -> {
             config.prefs().edit().putFloat("wallpaperZoom", 1f + v / 100f).apply();
             preview.reload();
@@ -249,10 +310,24 @@ public final class AuroraSettingsActivity extends Activity {
             config.prefs().edit().putFloat("wallpaperFocusY", v / 100f).apply();
             preview.reload();
         }));
-        sheet.addView(info("Drag the clock on the preview to reposition it. Long-press the lock screen to return here."));
+        sheet.addView(info("Drag in any direction to position the clock; pinch to resize. Long-press the lock screen to return here."));
     }
 
     private void effectsSheet() {
+        sheet.addView(toggle("Stack notifications", config.notificationStack(), on ->
+                config.prefs().edit().putBoolean("notificationStack", on).apply()));
+        sheet.addView(toggle("Music controls", config.showMedia(), on ->
+                config.prefs().edit().putBoolean("showMedia", on).apply()));
+        sheet.addView(toggle("Battery and next alarm", config.statusWidgets(), on ->
+                config.prefs().edit().putBoolean("statusWidgets", on).apply()));
+        sheet.addView(toggle("Wake transition", config.wakeAnimation(), on ->
+                config.prefs().edit().putBoolean("wakeAnimation", on).apply()));
+        String[] shortcuts = {"Flashlight", "Camera", "Alarms", "Phone", "Settings"};
+        sheet.addView(choiceRow("Left shortcut", shortcuts, config.leftShortcut(), i ->
+                config.prefs().edit().putInt("leftShortcut", i).apply()));
+        sheet.addView(choiceRow("Right shortcut", shortcuts, config.rightShortcut(), i ->
+                config.prefs().edit().putInt("rightShortcut", i).apply()));
+        sheet.addView(info("Tap a notification to open it after unlock. Swipe a dismissible card sideways to clear it. Tap the count to expand the stack. Music controls use your active player after notification access is enabled."));
         sheet.addView(toggle("Show live notifications", config.showNotifications(), c ->
                 config.prefs().edit().putBoolean("showNotifications", c).apply()));
         sheet.addView(toggle("Hide content until unlock", config.hideNotificationContent(), c ->
@@ -276,6 +351,40 @@ public final class AuroraSettingsActivity extends Activity {
         sheet.addView(action("Preview lock screen", v -> finish()));
     }
 
+    private void designsSheet() {
+        SavedLooks store = new SavedLooks(config);
+        sheet.addView(action("Save current design", v -> {
+            EditText name = new EditText(this); name.setSingleLine(true);
+            new AlertDialog.Builder(this).setTitle("Name this design").setView(name)
+                    .setPositiveButton("Save", (dialog, which) -> { store.save(name.getText().toString()); showTab(5); })
+                    .setNegativeButton("Cancel", null).show();
+        }));
+        sheet.addView(info("Swipe through saved designs. Tap a preview to apply it; long-press to delete. Up to eight designs stay on this phone."));
+        HorizontalScrollView gallery = new HorizontalScrollView(this);
+        LinearLayout row = new LinearLayout(this);
+        for (SavedLooks.Look look : store.list()) {
+            LinearLayout tile = new LinearLayout(this); tile.setOrientation(LinearLayout.VERTICAL);
+            tile.addView(label(look.name, 12, Color.WHITE, true));
+            AuroraSceneView miniature = new AuroraSceneView(this, true, SavedLooks.previewConfig(this, look));
+            miniature.layout(0, 0, 240, 520);
+            Bitmap bitmap = Bitmap.createBitmap(240, 520, Bitmap.Config.ARGB_8888);
+            miniature.draw(new Canvas(bitmap));
+            ImageView image = new ImageView(this); image.setImageBitmap(bitmap);
+            image.setContentDescription("Apply " + look.name);
+            image.setOnClickListener(v -> { store.apply(look); wallpaperHost.reload(); maybeAutoSegment(false); });
+            image.setOnLongClickListener(v -> {
+                new AlertDialog.Builder(this).setTitle("Delete " + look.name + "?")
+                        .setPositiveButton("Delete", (d, which) -> { store.delete(look.name); showTab(5); })
+                        .setNegativeButton("Cancel", null).show(); return true;
+            });
+            tile.addView(image, new LinearLayout.LayoutParams(dp(120), dp(260)));
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, -2); lp.rightMargin = dp(12);
+            row.addView(tile, lp);
+        }
+        gallery.addView(row); sheet.addView(gallery);
+        sheet.addView(action("Done · preview lock screen", v -> finish()));
+    }
+
     private String statusText() {
         String status = config.depthStatus();
         return status == null || status.isEmpty() ? "Automatic depth is ready when a wallpaper is selected." : status;
@@ -297,7 +406,7 @@ public final class AuroraSettingsActivity extends Activity {
 
     private void maybeAutoSegment(boolean force) {
         String wallpaper = config.wallpaper();
-        if (!config.depthEnabled() || wallpaper == null) return;
+        if (config.videoWallpaper() != null || !config.depthEnabled() || wallpaper == null) return;
         setDepthStatus("Identifying foreground subject…");
         depthEngine.segmentWallpaperAsync(Uri.parse(wallpaper), config.maskThreshold(), force, new DepthEngine.Callback() {
             @Override public void onStatus(String message) { runOnUiThread(() -> setDepthStatus(message)); }
@@ -414,17 +523,22 @@ public final class AuroraSettingsActivity extends Activity {
 
     @Override protected void onActivityResult(int request, int result, Intent data) {
         super.onActivityResult(request, result, data);
-        if ((request == 101 || request == 102) && result == RESULT_OK && data != null && data.getData() != null) {
+        if ((request == 101 || request == 102 || request == 103) && result == RESULT_OK && data != null && data.getData() != null) {
             Uri u = data.getData();
             try {
                 getContentResolver().takePersistableUriPermission(u, Intent.FLAG_GRANT_READ_URI_PERMISSION);
                 if (request == 101) {
                     config.prefs().edit().putString("foreground", u.toString()).apply();
                     Toast.makeText(this, "Cutout saved", Toast.LENGTH_SHORT).show();
+                } else if (request == 103) {
+                    config.prefs().edit().putString("videoWallpaper", u.toString()).apply();
+                    wallpaperHost.reload();
+                    Toast.makeText(this, "Video wallpaper saved", Toast.LENGTH_SHORT).show();
                 } else {
-                    config.prefs().edit().putString("wallpaper", u.toString()).remove("autoForeground")
+                    config.prefs().edit().putString("wallpaper", u.toString()).remove("autoForeground").remove("foreground").remove("videoWallpaper")
                             .putString("depthStatus", "Wallpaper saved. Analysing subject…").apply();
                     maybeAutoSegment(true);
+                    wallpaperHost.reload();
                 }
                 preview.reload();
             } catch (Exception e) {
@@ -512,12 +626,14 @@ public final class AuroraSettingsActivity extends Activity {
 
     @Override protected void onResume() {
         super.onResume();
+        wallpaperHost.resume();
         previewHandler.removeCallbacks(previewTicker);
         previewHandler.post(previewTicker);
         if (preview != null) preview.reload();
     }
 
     @Override protected void onPause() {
+        wallpaperHost.pause();
         previewHandler.removeCallbacks(previewTicker);
         super.onPause();
     }

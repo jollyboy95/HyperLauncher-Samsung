@@ -49,7 +49,7 @@ public final class DepthEngine {
             try {
                 callback.onStatus("Identifying foreground subject…");
                 File out = segment(wallpaper, source, threshold);
-                if (out == null) callback.onFailure("No animal or person subject was found. You can still pick a PNG cutout.");
+                if (out == null) callback.onFailure("No foreground subject was found. You can still pick a PNG cutout.");
                 else callback.onComplete(out, "Depth subject ready");
             } catch (Exception | LinkageError e) {
                 callback.onFailure("Automatic depth unavailable: " + e.getMessage());
@@ -82,7 +82,7 @@ public final class DepthEngine {
                 }
                 if (source == null) throw new IllegalStateException("Unable to read wallpaper");
                 File out = segment(wallpaper, source, threshold);
-                if (out == null) callback.onFailure("No animal or person subject was found. Try a PNG cutout.");
+                if (out == null) callback.onFailure("No foreground subject was found. Try a PNG cutout.");
                 else callback.onComplete(out, "Depth subject ready");
             } catch (Exception | LinkageError e) {
                 callback.onFailure("Automatic depth unavailable: " + e.getMessage());
@@ -93,7 +93,7 @@ public final class DepthEngine {
     }
 
     public static boolean isCurrentMask(String path) {
-        return path != null && new File(path).getName().startsWith("depth-v3-");
+        return path != null && new File(path).getName().startsWith("depth-v4-");
     }
 
     public File cachedMask(Uri wallpaper) {
@@ -208,7 +208,7 @@ public final class DepthEngine {
     }
 
     private File maskFile(Uri wallpaper) {
-        String name = "depth-v3-" + Integer.toHexString(String.valueOf(wallpaper).hashCode()) + ".png";
+        String name = "depth-v4-" + Integer.toHexString(String.valueOf(wallpaper).hashCode()) + ".png";
         return new File(context.getFilesDir(), name);
     }
 

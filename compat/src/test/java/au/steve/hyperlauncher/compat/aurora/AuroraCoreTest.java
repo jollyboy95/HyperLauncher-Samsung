@@ -74,6 +74,13 @@ public class AuroraCoreTest {
         assertTrue(confidence[0] > 0.99f);
     }
 
+    @Test public void vehiclesAndPlantsAreEligibleDepthSubjects() {
+        int[] counts = new int[21]; counts[0] = 500; counts[7] = 100;
+        assertEquals(7, LabelMask.chooseClass(counts, 600));
+        counts[7] = 0; counts[16] = 100;
+        assertEquals(16, LabelMask.chooseClass(counts, 600));
+    }
+
     @Test public void compositorKeepsColourAndAppliesAlpha() {
         int[] src = {0xFFFF0000, 0xFF00FF00};
         byte[] alpha = {(byte) 255, (byte) 0};

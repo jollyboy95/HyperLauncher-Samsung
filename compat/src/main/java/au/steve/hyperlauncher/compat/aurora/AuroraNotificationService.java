@@ -8,6 +8,7 @@ import android.service.notification.StatusBarNotification;
 public final class AuroraNotificationService extends NotificationListenerService {
     @Override public void onListenerConnected() {
         NotificationHub.get().setConnected(true);
+        NotificationHub.get().setDismissAction(this::cancelNotification);
         try {
             StatusBarNotification[] active = getActiveNotifications();
             if (active == null) return;
@@ -18,6 +19,7 @@ public final class AuroraNotificationService extends NotificationListenerService
     }
 
     @Override public void onListenerDisconnected() {
+        NotificationHub.get().setDismissAction(null);
         NotificationHub.get().setConnected(false);
     }
 
@@ -27,6 +29,12 @@ public final class AuroraNotificationService extends NotificationListenerService
 
     @Override public void onNotificationRemoved(StatusBarNotification sbn) {
         if (sbn != null) NotificationHub.get().remove(sbn.getKey());
+    }
+
+    @Override public void onDestroy() {
+        NotificationHub.get().setDismissAction(null);
+        NotificationHub.get().setConnected(false);
+        super.onDestroy();
     }
 
     private String appName(StatusBarNotification sbn) {

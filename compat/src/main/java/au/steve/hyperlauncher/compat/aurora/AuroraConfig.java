@@ -9,7 +9,11 @@ public final class AuroraConfig {
     private final SharedPreferences prefs;
 
     public AuroraConfig(Context context) {
-        prefs = context.getApplicationContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        this(context.getApplicationContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE));
+    }
+
+    public AuroraConfig(SharedPreferences settings) {
+        prefs = settings;
         if (!prefs.getBoolean("referenceStyleV1", false)) {
             applyPreset(0);
             prefs.edit().putBoolean("referenceStyleV1", true).apply();
@@ -24,6 +28,13 @@ public final class AuroraConfig {
     public int clockStyle() { return prefs.getInt("clockStyle", 0); }
     public int clockSize() { return prefs.getInt("clockSize", 168); }
     public int clockY() { return prefs.getInt("clockY", 0); }
+    public int clockYForHeight(float height) {
+        return prefs.contains("clockYRatio") ? Math.round(prefs.getFloat("clockYRatio", 0) * height) : clockY();
+    }
+    public void saveClockPosition(float x, int y, float height) {
+        saveClockPosition(x, y);
+        prefs.edit().putFloat("clockYRatio", y / Math.max(1, height)).apply();
+    }
     public int clockColor() { return prefs.getInt("clockColor", 0xE8F4FBFF); }
     public boolean autoClockColor() { return prefs.getBoolean("autoClockColor", true); }
     public boolean clock12() { return prefs.getBoolean("clock12", false); }
@@ -45,8 +56,36 @@ public final class AuroraConfig {
     public String autoForeground() { return prefs.getString("autoForeground", null); }
     public String depthStatus() { return prefs.getString("depthStatus", ""); }
 
+    public float clockX() { return prefs.getFloat("clockX", 0f); }
+    public float clockStretch() { return prefs.getFloat("clockStretch", 1f); }
+    public int hoursMaterial() { return prefs.getInt("hoursMaterial", -1); }
+    public int minutesMaterial() { return prefs.getInt("minutesMaterial", -1); }
+    public boolean outlineOverSubject() { return prefs.getBoolean("outlineOverSubject", true); }
+    public int clockMaterial() { return prefs.getInt("clockMaterial", 0); }
+    public int dateStyle() { return prefs.getInt("dateStyle", 0); }
+    public boolean showSeconds() { return prefs.getBoolean("showSeconds", false); }
+    public boolean photoMotion() { return prefs.getBoolean("photoMotion", false); }
+    public boolean wakeAnimation() { return prefs.getBoolean("wakeAnimation", true); }
+    public String videoWallpaper() { return prefs.getString("videoWallpaper", null); }
+    public boolean showMedia() { return prefs.getBoolean("showMedia", true); }
+    public boolean notificationStack() { return prefs.getBoolean("notificationStack", true); }
+    public boolean statusWidgets() { return prefs.getBoolean("statusWidgets", true); }
+    public int leftShortcut() { return prefs.getInt("leftShortcut", 0); }
+    public int rightShortcut() { return prefs.getInt("rightShortcut", 1); }
+    public void saveClockPosition(float x, int y) {
+        prefs.edit().putFloat("clockX", Math.max(-.38f, Math.min(.38f, x))).putInt("clockY", y).apply();
+    }
+
     public void applyPreset(int preset) {
-        prefs.edit().putInt("clockPreset", preset).putInt("clockStyle", preset == 3 ? 2 : 0)
+        if (preset >= 5) {
+            prefs.edit().remove("clockYRatio").remove("hoursMaterial").remove("minutesMaterial").putInt("clockPreset", preset).putInt("clockStyle", 0)
+                    .putInt("clockSize", 168).putInt("clockY", 0).putFloat("clockX", 0)
+                    .putFloat("clockStretch", 1).putFloat("clockWeight", .95f)
+                    .putFloat("clockOpacity", .92f).putInt("clockColor", 0xFFFFFFFF)
+                    .putBoolean("autoClockColor", false).apply();
+            return;
+        }
+        prefs.edit().remove("clockYRatio").remove("hoursMaterial").remove("minutesMaterial").putInt("clockPreset", preset).putInt("clockStyle", preset == 3 ? 2 : 0)
                 .putInt("clockSize", 168).putInt("clockY", 0)
                 .putFloat("clockWidth", .48f).putFloat("clockWeight", .20f)
                 .putFloat("clockSpacing", .35f).putFloat("clockOpacity", preset == 4 ? .46f : .64f)
@@ -55,7 +94,7 @@ public final class AuroraConfig {
 
     public void resetClock() {
         applyPreset(0);
-        prefs.edit()
+        prefs.edit().remove("clockX").remove("clockStretch").remove("clockMaterial").remove("hoursMaterial").remove("minutesMaterial").remove("outlineOverSubject").remove("dateStyle").remove("showSeconds")
                 .putInt("clockPreset", 0)
                 .putInt("clockStyle", 0)
                 .putInt("clockSize", 168)
@@ -72,7 +111,8 @@ public final class AuroraConfig {
 
     public void resetAll() {
         resetClock();
-        prefs.edit()
+        prefs.edit().remove("photoMotion").remove("wakeAnimation").remove("showMedia").remove("notificationStack")
+                .remove("statusWidgets").remove("leftShortcut").remove("rightShortcut").remove("videoWallpaper")
                 .putFloat("wallpaperZoom", 1f)
                 .putFloat("wallpaperFocusX", 0.5f)
                 .putFloat("wallpaperFocusY", 0.5f)

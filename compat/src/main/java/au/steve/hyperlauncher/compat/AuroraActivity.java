@@ -1,6 +1,17 @@
 package au.steve.hyperlauncher.compat;
 
 import android.app.Activity;
+import android.app.AlarmManager;
+import android.app.PendingIntent;
+import android.content.IntentFilter;
+import android.os.BatteryManager;
+import android.media.MediaMetadata;
+import android.media.session.PlaybackState;
+import android.provider.AlarmClock;
+import android.widget.SeekBar;
+import android.widget.Button;
+import android.widget.ScrollView;
+import au.steve.hyperlauncher.compat.aurora.LockMediaController;
 import android.app.KeyguardManager;
 import android.content.Intent;
 import android.graphics.Color;
@@ -35,6 +46,12 @@ import java.util.List;
 public final class AuroraActivity extends Activity {
     private AuroraSceneView scene;
     private LinearLayout notices;
+    private AuroraWallpaperHost wallpaperHost;
+    private LockMediaController media;
+    private boolean notificationsExpanded;
+    private boolean lastLocked;
+    private long lastStatusMinute = -1;
+    private TextView leftShortcutView, rightShortcutView;
     private float downY;
     private boolean torchOn;
     private String torchId;
@@ -46,7 +63,12 @@ public final class AuroraActivity extends Activity {
     private final Runnable tick = new Runnable() {
         public void run() {
             if (scene != null) scene.invalidate();
-            handler.postDelayed(this, 10000);
+            long minute = System.currentTimeMillis() / 60000;
+            if (lastLocked != locked() || minute != lastStatusMinute) {
+                lastLocked = locked(); lastStatusMinute = minute;
+                renderNotices(NotificationHub.get().snapshot());
+            }
+            handler.postDelayed(this, config.showSeconds() ? 1000 : 10000);
         }
     };
     private final NotificationHub.Listener noticeListener = this::renderNotices;
@@ -57,8 +79,10 @@ public final class AuroraActivity extends Activity {
         setShowWhenLocked(true);
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(Color.BLACK);
-        scene = new AuroraSceneView(this, false);
-        root.addView(scene, new FrameLayout.LayoutParams(-1, -1));
+        wallpaperHost = new AuroraWallpaperHost(this, false);
+        scene = wallpaperHost.scene;
+        root.addView(wallpaperHost, new FrameLayout.LayoutParams(-1, -1));
+        media = new LockMediaController(this, () -> renderNotices(NotificationHub.get().snapshot()));
         notices = new LinearLayout(this);
         notices.setOrientation(LinearLayout.VERTICAL);
         FrameLayout.LayoutParams np = new FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM);
@@ -88,23 +112,19 @@ public final class AuroraActivity extends Activity {
 
         cameras = (CameraManager) getSystemService(CAMERA_SERVICE);
         TextView flash = shortcut("✦");
+        leftShortcutView = flash;
         FrameLayout.LayoutParams fl = new FrameLayout.LayoutParams(dp(58), dp(58), Gravity.BOTTOM | Gravity.START);
         fl.setMargins(dp(28), 0, 0, dp(36));
         flash.setContentDescription("Toggle flashlight");
-        flash.setOnClickListener(v -> toggleTorch());
+        flash.setOnClickListener(v -> runShortcut(config.leftShortcut()));
         root.addView(flash, fl);
 
         TextView camera = shortcut("◎");
+        rightShortcutView = camera;
         FrameLayout.LayoutParams cp = new FrameLayout.LayoutParams(dp(58), dp(58), Gravity.BOTTOM | Gravity.END);
         cp.setMargins(0, 0, dp(28), dp(36));
         camera.setContentDescription("Open camera");
-        camera.setOnClickListener(v -> {
-            try {
-                startActivity(new Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA));
-            } catch (Exception ex) {
-                Toast.makeText(this, "Camera unavailable", Toast.LENGTH_SHORT).show();
-            }
-        });
+        camera.setOnClickListener(v -> runShortcut(config.rightShortcut()));
         root.addView(camera, cp);
 
         root.setOnApplyWindowInsetsListener((v, insets) -> {
@@ -191,17 +211,140 @@ public final class AuroraActivity extends Activity {
 
     private void renderNotices(List<NotificationHub.Item> items) {
         notices.removeAllViews();
-        if (!config.showNotifications() || items == null || items.isEmpty()) return;
         boolean locked = false;
         KeyguardManager km = getSystemService(KeyguardManager.class);
         if (km != null) locked = km.isKeyguardLocked() || km.isDeviceLocked();
         boolean redact = locked && config.hideNotificationContent();
-        int shown = 0;
-        for (NotificationHub.Item item : items) {
-            if (shown >= 3) break;
-            notices.addView(card(item, redact), new LinearLayout.LayoutParams(-1, -2));
-            shown++;
+        if (config.statusWidgets()) addStatusWidgets();
+        if (config.showMedia() && media != null && media.hasSession()) addMediaCard(redact);
+        if (!config.showNotifications() || items == null || items.isEmpty()) return;
+        boolean stacked = config.notificationStack() && items.size() > 1;
+        if (stacked) {
+            TextView count = label(items.size() + " notifications  ·  "
+                    + (notificationsExpanded ? "Collapse" : "Expand"), 12, 0xFFE7F2FF, true);
+            count.setPadding(dp(12), dp(8), dp(12), dp(8));
+            count.setOnClickListener(v -> { notificationsExpanded = !notificationsExpanded; renderNotices(NotificationHub.get().snapshot()); });
+            notices.addView(count);
         }
+        LinearLayout list = new LinearLayout(this);
+        list.setOrientation(LinearLayout.VERTICAL);
+        int limit = stacked && !notificationsExpanded ? 1 : 8;
+        for (int i = 0; i < items.size() && i < limit; i++) list.addView(card(items.get(i), redact));
+        ScrollView scroll = new ScrollView(this);
+        scroll.setFillViewport(false);
+        scroll.addView(list);
+        int rows = Math.min(limit, items.size());
+        notices.addView(scroll, new LinearLayout.LayoutParams(-1, rows > 2 ? dp(190) : -2));
+    }
+
+    private boolean locked() {
+        KeyguardManager km = getSystemService(KeyguardManager.class);
+        return km != null && (km.isKeyguardLocked() || km.isDeviceLocked());
+    }
+
+    private void afterUnlock(Runnable action) {
+        KeyguardManager km = getSystemService(KeyguardManager.class);
+        if (km != null && locked()) {
+            km.requestDismissKeyguard(this, new KeyguardManager.KeyguardDismissCallback() {
+                @Override public void onDismissSucceeded() { action.run(); }
+            });
+        } else action.run();
+    }
+
+    private void runShortcut(int shortcut) {
+        if (shortcut == 0) { toggleTorch(); return; }
+        Intent intent = shortcut == 1 ? new Intent(locked() ? MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA_SECURE
+                : MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA)
+                : shortcut == 2 ? new Intent(AlarmClock.ACTION_SHOW_ALARMS)
+                : shortcut == 3 ? new Intent(Intent.ACTION_DIAL) : new Intent(android.provider.Settings.ACTION_SETTINGS);
+        Runnable open = () -> { try { startActivity(intent); } catch (Exception e) {
+            Toast.makeText(this, "Shortcut unavailable", Toast.LENGTH_SHORT).show(); } };
+        if (shortcut == 1) open.run(); else afterUnlock(open);
+    }
+
+    private void updateShortcuts() {
+        String[] symbols = {"✦", "◎", "◷", "☎", "⚙"};
+        String[] names = {"Flashlight", "Camera", "Alarms", "Phone", "Settings"};
+        int left = Math.max(0, Math.min(4, config.leftShortcut()));
+        int right = Math.max(0, Math.min(4, config.rightShortcut()));
+        leftShortcutView.setText(symbols[left]); leftShortcutView.setContentDescription(names[left]);
+        rightShortcutView.setText(symbols[right]); rightShortcutView.setContentDescription(names[right]);
+    }
+
+    private void addStatusWidgets() {
+        Intent battery = registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+        int level = battery == null ? -1 : battery.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+        int scale = battery == null ? 100 : battery.getIntExtra(BatteryManager.EXTRA_SCALE, 100);
+        String text = level < 0 ? "" : Math.round(level * 100f / Math.max(1, scale)) + "% battery";
+        AlarmManager alarms = getSystemService(AlarmManager.class);
+        AlarmManager.AlarmClockInfo next = alarms == null ? null : alarms.getNextAlarmClock();
+        if (next != null) text += "   ·   Alarm " + DateFormat.getTimeInstance(DateFormat.SHORT).format(new Date(next.getTriggerTime()));
+        if (!text.isEmpty()) {
+            TextView widgets = label(text, 11, 0xDDE7F2FF, true);
+            widgets.setGravity(Gravity.CENTER);
+            widgets.setPadding(dp(8), dp(6), dp(8), dp(6));
+            widgets.setOnClickListener(v -> runShortcut(2));
+            notices.addView(widgets);
+        }
+    }
+
+    private void addMediaCard(boolean redact) {
+        MediaMetadata data = media.metadata();
+        PlaybackState state = media.playback();
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(14), dp(10), dp(14), dp(10));
+        card.setBackground(glass());
+        String title = data == null ? "Now playing" : String.valueOf(data.getText(MediaMetadata.METADATA_KEY_TITLE));
+        if (title.equals("null")) title = "Now playing";
+        CharSequence artist = data == null ? null : data.getText(MediaMetadata.METADATA_KEY_ARTIST);
+        if (!redact && data != null) {
+            android.graphics.Bitmap art = data.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART);
+            if (art == null) art = data.getBitmap(MediaMetadata.METADATA_KEY_ART);
+            if (art != null) {
+                ImageView artwork = new ImageView(this); artwork.setImageBitmap(art);
+                artwork.setScaleType(ImageView.ScaleType.CENTER_CROP); artwork.setContentDescription("Album artwork");
+                card.addView(artwork, new LinearLayout.LayoutParams(dp(48), dp(48)));
+            }
+        }
+        card.addView(label(redact ? "Unlock to view media" : title, 14, Color.WHITE, true));
+        if (!redact && artist != null) card.addView(label(artist.toString(), 11, 0xCCDEE9F5, false));
+        LinearLayout controls = new LinearLayout(this);
+        controls.setGravity(Gravity.CENTER);
+        addMediaButton(controls, "⏮", "Previous track", () -> media.previous());
+        boolean playing = state != null && state.getState() == PlaybackState.STATE_PLAYING;
+        addMediaButton(controls, playing ? "Ⅱ" : "▶", playing ? "Pause" : "Play", () -> media.playPause());
+        addMediaButton(controls, "⏭", "Next track", () -> media.next());
+        card.addView(controls);
+        if (!redact && data != null && state != null && data.getLong(MediaMetadata.METADATA_KEY_DURATION) > 0
+                && (state.getActions() & PlaybackState.ACTION_SEEK_TO) != 0) {
+            long duration = data.getLong(MediaMetadata.METADATA_KEY_DURATION);
+            SeekBar seek = new SeekBar(this);
+            seek.setMax(1000);
+            seek.setProgress((int) Math.min(1000, state.getPosition() * 1000 / duration));
+            seek.setContentDescription("Playback position");
+            seek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+                public void onProgressChanged(SeekBar s, int value, boolean user) { if (user) media.seek(duration * value / 1000); }
+                public void onStartTrackingTouch(SeekBar s) {}
+                public void onStopTrackingTouch(SeekBar s) {}
+            });
+            card.addView(seek);
+        }
+        notices.addView(card);
+    }
+
+    private void addMediaButton(LinearLayout row, String symbol, String description, Runnable action) {
+        TextView button = label(symbol, 22, Color.WHITE, true);
+        button.setGravity(Gravity.CENTER); button.setContentDescription(description);
+        button.setOnClickListener(v -> action.run());
+        row.addView(button, new LinearLayout.LayoutParams(dp(64), dp(48)));
+    }
+
+    private GradientDrawable glass() {
+        GradientDrawable glass = new GradientDrawable(GradientDrawable.Orientation.TL_BR,
+                new int[]{0xAA304458, 0x8A152331});
+        glass.setCornerRadius(dp(22)); glass.setStroke(dp(1), 0x55FFFFFF);
+        return glass;
     }
 
     private View card(NotificationHub.Item item, boolean redact) {
@@ -218,6 +361,25 @@ public final class AuroraActivity extends Activity {
         glass.setCornerRadius(dp(22));
         glass.setStroke(dp(1), 0x55FFFFFF);
         row.setBackground(glass);
+        row.setOnClickListener(v -> {
+            if (item.contentIntent == null) return;
+            afterUnlock(() -> { try { item.contentIntent.send(); } catch (PendingIntent.CanceledException e) {
+                Toast.makeText(this, "Notification is no longer available", Toast.LENGTH_SHORT).show();
+            } });
+        });
+        row.setOnTouchListener(new View.OnTouchListener() {
+            float startX, startY;
+            public boolean onTouch(View v, MotionEvent e) {
+                if (e.getAction() == MotionEvent.ACTION_DOWN) { startX = e.getX(); startY = e.getY(); return true; }
+                if (e.getAction() == MotionEvent.ACTION_UP) {
+                    if (Math.abs(e.getX() - startX) > dp(72) && Math.abs(e.getY() - startY) < dp(50))
+                        NotificationHub.get().dismiss(item);
+                    else if (Math.abs(e.getY() - startY) < dp(12)) v.performClick();
+                    return true;
+                }
+                return e.getAction() != MotionEvent.ACTION_CANCEL;
+            }
+        });
         ImageView icon = new ImageView(this);
         LinearLayout.LayoutParams ip = new LinearLayout.LayoutParams(dp(28), dp(28));
         ip.rightMargin = dp(12);
@@ -262,7 +424,13 @@ public final class AuroraActivity extends Activity {
     @Override protected void onResume() {
         super.onResume();
         immersive();
-        scene.reload();
+        wallpaperHost.resume();
+        updateShortcuts();
+        media.start();
+        if (config.wakeAnimation() && android.animation.ValueAnimator.areAnimatorsEnabled()) {
+            scene.setAlpha(.65f);
+            scene.animate().alpha(1).setDuration(420).start();
+        }
         ensureDepth();
         handler.removeCallbacks(tick);
         handler.post(tick);
@@ -271,7 +439,7 @@ public final class AuroraActivity extends Activity {
 
     private void ensureDepth() {
         String wallpaper = config.wallpaper();
-        if (!config.depthEnabled() || wallpaper == null || config.foreground() != null
+        if (config.videoWallpaper() != null || !config.depthEnabled() || wallpaper == null || config.foreground() != null
                 || wallpaper.equals(requestedWallpaper)) return;
         requestedWallpaper = wallpaper;
         if (depthEngine == null) depthEngine = new DepthEngine(this);
@@ -297,6 +465,10 @@ public final class AuroraActivity extends Activity {
     }
 
     @Override protected void onPause() {
+        wallpaperHost.pause();
+        media.stop();
+        scene.animate().cancel();
+        scene.setAlpha(1);
         handler.removeCallbacks(tick);
         NotificationHub.get().removeListener(noticeListener);
         if (torchOn && torchId != null) {
