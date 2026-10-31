@@ -15,6 +15,7 @@ import android.net.Uri;
 import android.view.View;
 import android.view.animation.DecelerateInterpolator;
 import au.steve.hyperlauncher.compat.aurora.AuroraConfig;
+import au.steve.hyperlauncher.compat.aurora.DepthEngine;
 import au.steve.hyperlauncher.compat.aurora.core.ClockLayout;
 import au.steve.hyperlauncher.compat.aurora.core.ColorMath;
 import au.steve.hyperlauncher.compat.aurora.core.WallpaperTransform;
@@ -127,18 +128,20 @@ public final class AuroraSceneView extends View {
         String fg = null;
         if (config.depthEnabled()) {
             String auto = config.autoForeground();
-            if (auto != null) fg = auto;
+            if (DepthEngine.isCurrentMask(auto)) fg = auto;
         }
-        if (fg == null) fg = config.foreground();
+        if (config.depthEnabled() && config.foreground() != null) fg = config.foreground();
         if (!String.valueOf(bg).equals(loadedBackground)) {
             if (background != null) background.recycle();
             background = load(bg);
             loadedBackground = String.valueOf(bg);
         }
-        if (!String.valueOf(fg).equals(loadedForeground)) {
+        String foregroundKey = String.valueOf(fg);
+        if (fg != null && fg.startsWith("/")) foregroundKey += ":" + new File(fg).lastModified();
+        if (!foregroundKey.equals(loadedForeground)) {
             if (foreground != null) foreground.recycle();
             foreground = load(fg);
-            loadedForeground = String.valueOf(fg);
+            loadedForeground = foregroundKey;
         }
         int preset = config.clockPreset();
         if (preset != displayedPreset) animatePreset(preset);

@@ -9,6 +9,7 @@ import android.graphics.drawable.GradientDrawable;
 import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraManager;
 import android.os.Build;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -24,6 +25,8 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 import au.steve.hyperlauncher.compat.aurora.AuroraConfig;
+import au.steve.hyperlauncher.compat.aurora.DepthEngine;
+import java.io.File;
 import au.steve.hyperlauncher.compat.aurora.NotificationHub;
 import java.text.DateFormat;
 import java.util.Date;
@@ -37,6 +40,8 @@ public final class AuroraActivity extends Activity {
     private String torchId;
     private CameraManager cameras;
     private AuroraConfig config;
+    private DepthEngine depthEngine;
+    private String requestedWallpaper;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable tick = new Runnable() {
         public void run() {
@@ -258,9 +263,37 @@ public final class AuroraActivity extends Activity {
         super.onResume();
         immersive();
         scene.reload();
+        ensureDepth();
         handler.removeCallbacks(tick);
         handler.post(tick);
         NotificationHub.get().addListener(noticeListener);
+    }
+
+    private void ensureDepth() {
+        String wallpaper = config.wallpaper();
+        if (!config.depthEnabled() || wallpaper == null || config.foreground() != null
+                || wallpaper.equals(requestedWallpaper)) return;
+        requestedWallpaper = wallpaper;
+        if (depthEngine == null) depthEngine = new DepthEngine(this);
+        depthEngine.segmentWallpaperAsync(Uri.parse(wallpaper), config.maskThreshold(), false, new DepthEngine.Callback() {
+            @Override public void onStatus(String message) {
+                config.prefs().edit().putString("depthStatus", message).apply();
+            }
+            @Override public void onComplete(File file, String message) {
+                handler.post(() -> {
+                    if (isDestroyed() || !wallpaper.equals(config.wallpaper())) return;
+                    config.prefs().edit().putString("autoForeground", file.getAbsolutePath())
+                            .putString("depthStatus", message).apply();
+                    scene.reload();
+                });
+            }
+            @Override public void onFailure(String message) { onStatus(message); }
+        });
+    }
+
+    @Override protected void onDestroy() {
+        if (depthEngine != null) depthEngine.close();
+        super.onDestroy();
     }
 
     @Override protected void onPause() {

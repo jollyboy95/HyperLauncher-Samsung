@@ -18,6 +18,15 @@ public final class LabelMask {
 
     private LabelMask() {}
 
+    /** The bundled PASCAL VOC model returns [batch, height, width, classes]. */
+    public static int[] hwcDimensions(int[] shape) {
+        if (shape == null || shape.length != 4 || shape[0] != 1
+                || shape[1] <= 0 || shape[2] <= 0 || shape[3] != 21) {
+            throw new IllegalArgumentException("Expected DeepLab output [1, height, width, 21]");
+        }
+        return new int[]{shape[1], shape[2], shape[3]};
+    }
+
     public static boolean isSubjectClass(int cls) {
         for (int p : PRIORITY) if (p == cls) return true;
         return false;
@@ -55,7 +64,11 @@ public final class LabelMask {
         float[] confidence = new float[pixels];
         if (chosen <= 0) return confidence;
         for (int i = 0; i < pixels; i++) {
-            if (argmax[i] == chosen) confidence[i] = clamp01(peak[i]);
+            if (argmax[i] == chosen) {
+                double sum = 0;
+                for (int c = 0; c < classes; c++) sum += Math.exp(logits[i * classes + c] - peak[i]);
+                confidence[i] = (float) (1.0 / sum);
+            }
         }
         return confidence;
     }

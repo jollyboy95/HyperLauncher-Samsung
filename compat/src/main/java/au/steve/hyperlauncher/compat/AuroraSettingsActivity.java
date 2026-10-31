@@ -298,43 +298,22 @@ public final class AuroraSettingsActivity extends Activity {
     private void maybeAutoSegment(boolean force) {
         String wallpaper = config.wallpaper();
         if (!config.depthEnabled() || wallpaper == null) return;
-        File cached = depthEngine.cachedMask(Uri.parse(wallpaper));
-        if (cached != null && !force) {
-            config.prefs().edit().putString("autoForeground", cached.getAbsolutePath())
-                    .putString("depthStatus", "Using cached subject mask").apply();
-            preview.reload();
-            return;
-        }
         setDepthStatus("Identifying foreground subject…");
-        new Thread(() -> {
-            android.graphics.Bitmap bitmap = loadBitmap(Uri.parse(wallpaper));
-            if (bitmap == null) {
-                runOnUiThread(() -> setDepthStatus("Unable to read wallpaper for depth."));
-                return;
+        depthEngine.segmentWallpaperAsync(Uri.parse(wallpaper), config.maskThreshold(), force, new DepthEngine.Callback() {
+            @Override public void onStatus(String message) { runOnUiThread(() -> setDepthStatus(message)); }
+            @Override public void onComplete(File maskFile, String message) {
+                runOnUiThread(() -> {
+                    if (!wallpaper.equals(config.wallpaper())) return;
+                    config.prefs().edit().putString("autoForeground", maskFile.getAbsolutePath())
+                            .putString("depthStatus", message).apply();
+                    preview.reload();
+                    setDepthStatus(message);
+                });
             }
-            depthEngine.segmentAsync(Uri.parse(wallpaper), bitmap, config.maskThreshold(), new DepthEngine.Callback() {
-                @Override public void onStatus(String message) { runOnUiThread(() -> setDepthStatus(message)); }
-                @Override public void onComplete(File maskFile, String message) {
-                    runOnUiThread(() -> {
-                        config.prefs().edit().putString("autoForeground", maskFile.getAbsolutePath())
-                                .putString("depthStatus", message).apply();
-                        preview.reload();
-                        setDepthStatus(message);
-                    });
-                }
-                @Override public void onFailure(String message) {
-                    runOnUiThread(() -> setDepthStatus(message));
-                }
-            });
-        }).start();
-    }
-
-    private android.graphics.Bitmap loadBitmap(Uri uri) {
-        try (InputStream in = getContentResolver().openInputStream(uri)) {
-            return android.graphics.BitmapFactory.decodeStream(in);
-        } catch (Exception e) {
-            return null;
-        }
+            @Override public void onFailure(String message) {
+                runOnUiThread(() -> { if (wallpaper.equals(config.wallpaper())) setDepthStatus(message); });
+            }
+        });
     }
 
     private void setDepthStatus(String message) {

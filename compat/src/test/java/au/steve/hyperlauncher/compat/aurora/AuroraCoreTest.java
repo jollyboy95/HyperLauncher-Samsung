@@ -39,10 +39,10 @@ public class AuroraCoreTest {
         for (int y = 0; y < h; y++) {
             for (int x = 0; x < w; x++) {
                 int i = (y * w + x) * c;
-                logits[i] = 0.8f;
+                logits[i] = 8f;
                 if (x >= 2 && x <= 5 && y >= 2 && y <= 6) {
-                    logits[i] = 0.05f;
-                    logits[i + LabelMask.DOG] = 0.95f;
+                    logits[i] = 0f;
+                    logits[i + LabelMask.DOG] = 10f;
                 }
             }
         }
@@ -51,6 +51,20 @@ public class AuroraCoreTest {
         for (float v : conf) if (v > 0.5f) hits++;
         assertTrue("dog region should be selected", hits >= 8);
         assertEquals(LabelMask.DOG, LabelMask.chooseClass(new int[]{40,0,0,0,0,0,0,0,0,0,0,0,20,0,0,0,0,0,0,0,0}, 64));
+    }
+
+    @Test public void bundledOutputUsesLastDimensionForClasses() {
+        assertArrayEquals(new int[]{257, 257, 21}, LabelMask.hwcDimensions(new int[]{1, 257, 257, 21}));
+        assertThrows(IllegalArgumentException.class,
+                () -> LabelMask.hwcDimensions(new int[]{1, 21, 257, 257}));
+    }
+
+    @Test public void negativeLogitsStillProduceSubjectConfidence() {
+        float[] logits = new float[8 * 8 * 21];
+        java.util.Arrays.fill(logits, -15f);
+        for (int i = 0; i < 64; i++) logits[i * 21 + LabelMask.DOG] = -2f;
+        float[] confidence = LabelMask.selectSubject(logits, 8, 8, 21);
+        assertTrue(confidence[0] > 0.99f);
     }
 
     @Test public void compositorKeepsColourAndAppliesAlpha() {

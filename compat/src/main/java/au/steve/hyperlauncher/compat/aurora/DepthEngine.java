@@ -3,6 +3,7 @@ package au.steve.hyperlauncher.compat.aurora;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.graphics.BitmapFactory;
 import android.net.Uri;
 import au.steve.hyperlauncher.compat.aurora.core.DepthCompositor;
 import au.steve.hyperlauncher.compat.aurora.core.LabelMask;
@@ -49,10 +50,49 @@ public final class DepthEngine {
                 File out = segment(wallpaper, source, threshold);
                 if (out == null) callback.onFailure("No animal or person subject was found. You can still pick a PNG cutout.");
                 else callback.onComplete(out, "Depth subject ready");
-            } catch (Exception e) {
+            } catch (Exception | LinkageError e) {
                 callback.onFailure("Automatic depth unavailable: " + e.getMessage());
             }
         });
+    }
+
+    /** Owns the sampled bitmap until inference completes. Callbacks run on the worker. */
+    public void segmentWallpaperAsync(Uri wallpaper, float threshold, boolean force, Callback callback) {
+        WORKER.execute(() -> {
+            Bitmap source = null;
+            try {
+                File cached = cachedMask(wallpaper);
+                if (cached != null && !force) {
+                    callback.onComplete(cached, "Depth subject ready");
+                    return;
+                }
+                callback.onStatus("Identifying foreground subject…");
+                BitmapFactory.Options options = new BitmapFactory.Options();
+                options.inJustDecodeBounds = true;
+                try (InputStream in = context.getContentResolver().openInputStream(wallpaper)) {
+                    BitmapFactory.decodeStream(in, null, options);
+                }
+                options.inSampleSize = 1;
+                while (options.outWidth / options.inSampleSize > 1800
+                        || options.outHeight / options.inSampleSize > 1800) options.inSampleSize *= 2;
+                options.inJustDecodeBounds = false;
+                try (InputStream in = context.getContentResolver().openInputStream(wallpaper)) {
+                    source = BitmapFactory.decodeStream(in, null, options);
+                }
+                if (source == null) throw new IllegalStateException("Unable to read wallpaper");
+                File out = segment(wallpaper, source, threshold);
+                if (out == null) callback.onFailure("No animal or person subject was found. Try a PNG cutout.");
+                else callback.onComplete(out, "Depth subject ready");
+            } catch (Exception | LinkageError e) {
+                callback.onFailure("Automatic depth unavailable: " + e.getMessage());
+            } finally {
+                if (source != null) source.recycle();
+            }
+        });
+    }
+
+    public static boolean isCurrentMask(String path) {
+        return path != null && new File(path).getName().startsWith("depth-v2-");
     }
 
     public File cachedMask(Uri wallpaper) {
@@ -68,7 +108,7 @@ public final class DepthEngine {
         }
     }
 
-    private File segment(Uri wallpaper, Bitmap source, float threshold) throws Exception {
+    private synchronized File segment(Uri wallpaper, Bitmap source, float threshold) throws Exception {
         if (source == null || source.getWidth() <= 0) return null;
         ensureInterpreter();
         Tensor input = interpreter.getInputTensor(0);
@@ -79,41 +119,18 @@ public final class DepthEngine {
         Object inputBuffer = buildInput(input, scaled);
         Tensor output = interpreter.getOutputTensor(0);
         int[] outShape = output.shape();
-        float[][][][] logits4 = null;
-        ByteBuffer raw = null;
-        Object feed;
-        if (outShape.length == 4) {
-            logits4 = new float[outShape[0]][outShape[1]][outShape[2]][outShape[3]];
-            feed = logits4;
-        } else {
-            raw = ByteBuffer.allocateDirect(output.numBytes()).order(ByteOrder.nativeOrder());
-            feed = raw;
+        int[] dimensions = LabelMask.hwcDimensions(outShape);
+        int height = dimensions[0];
+        int width = dimensions[1];
+        int classes = dimensions[2];
+        if (output.dataType() != DataType.FLOAT32) {
+            throw new IllegalStateException("Expected float DeepLab output");
         }
-        interpreter.run(inputBuffer, feed);
-        float[] flat;
-        int height;
-        int width;
-        int classes;
-        if (logits4 != null) {
-            if (outShape[3] > outShape[1] && outShape[3] > 8) {
-                height = outShape[1];
-                width = outShape[2];
-                classes = outShape[3];
-                flat = flattenHwc(logits4[0], height, width, classes);
-            } else {
-                classes = outShape[1];
-                height = outShape[2];
-                width = outShape[3];
-                flat = flattenChw(logits4[0], classes, height, width);
-            }
-        } else {
-            raw.rewind();
-            height = ih;
-            width = iw;
-            classes = Math.max(1, output.numBytes() / (4 * height * width));
-            flat = new float[height * width * classes];
-            raw.asFloatBuffer().get(flat);
-        }
+        ByteBuffer raw = ByteBuffer.allocateDirect(output.numBytes()).order(ByteOrder.nativeOrder());
+        interpreter.run(inputBuffer, raw);
+        raw.rewind();
+        float[] flat = new float[height * width * classes];
+        raw.asFloatBuffer().get(flat);
         if (scaled != source) scaled.recycle();
         float[] confidence = LabelMask.selectSubject(flat, height, width, classes);
         boolean any = false;
@@ -175,22 +192,8 @@ public final class DepthEngine {
         return buf;
     }
 
-    private static float[] flattenHwc(float[][][] src, int h, int w, int c) {
-        float[] out = new float[h * w * c];
-        int i = 0;
-        for (int y = 0; y < h; y++) for (int x = 0; x < w; x++) for (int k = 0; k < c; k++) out[i++] = src[y][x][k];
-        return out;
-    }
-
-    private static float[] flattenChw(float[][][] src, int c, int h, int w) {
-        float[] out = new float[h * w * c];
-        int i = 0;
-        for (int y = 0; y < h; y++) for (int x = 0; x < w; x++) for (int k = 0; k < c; k++) out[i++] = src[k][y][x];
-        return out;
-    }
-
     private File maskFile(Uri wallpaper) {
-        String name = "depth-" + Integer.toHexString(String.valueOf(wallpaper).hashCode()) + ".png";
+        String name = "depth-v2-" + Integer.toHexString(String.valueOf(wallpaper).hashCode()) + ".png";
         return new File(context.getFilesDir(), name);
     }
 
