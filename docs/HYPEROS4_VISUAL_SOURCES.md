@@ -26,3 +26,28 @@ The full settings redesign is outstanding. This patch addresses the demonstrated
 - Stock Samsung may apply additional vendor policies not exposed through notification-listener ranking; physical phone verification remains required.
 
 Android ranking API source: https://developer.android.com/reference/android/service/notification/NotificationListenerService.Ranking
+
+## Additional repositories supplied by the user
+
+### HyperChanger
+
+- Supplied copy: https://github.com/ringmembranouslabyrinth195/HyperChanger — inspected commit 550b35029bd96d228394b55129397e3bf42283ca.
+- Original project referenced by its Chinese README: https://github.com/ColdP/HyperChanger — current main reported c84c224b2285590604e9e30e896a9a379e07c293 during this review.
+- Source files inspected: HookSettings.kt, HyperSystemUiModule.kt and the relevant settings entries in MainActivity.kt. This is ordinary repository source review; no REA binary observation is implied.
+- Useful behavior model: independent lock-screen notification/media/focus material controls; opacity, tint and blur; advanced glass controls for light/refraction/edges; shortcut background styles and charging-text control. These are third-party module options, not proof of stock HyperOS settings appearance.
+- Hooks explicitly reference Xiaomi MiBackgroundStyle, MiBlurCompat, MiGlassCompat, MiuiShortcutController and depth-avoidance classes. They require Xiaomi internals and LSPosed/root; they are not directly usable in stock Samsung Aurora.
+- The depth hook changes an image threshold and bypasses hierarchy avoidance. Treat this as modified behavior, not the native reference for legibility policy. Aurora should preserve deliberate legibility safeguards.
+- Provenance/licensing discrepancy: the supplied copy has an MIT license file, while the referenced original currently has AGPL-3.0. No source was copied or integrated; resolve provenance before any reuse. This review does not establish the supplied copy's right to relicense every file.
+- Aurora design direction: separate normal/media card material settings if needed, consistent glass shortcut controls, and grouped visual controls. Implement independently with Android drawing APIs and original assets; do not introduce Xiaomi reflection hooks.
+
+### Mods-Center HyperOS-AOD
+
+https://github.com/Mods-Center/HyperOS-AOD/releases/tag/V3
+
+- Published V3 asset SHA-256 is 8aa9c7220bba9e23b5cc46e86c7dbecb95f163f4546cc5fd1bba84f837349526 — exactly matches the user's uploaded ZIP analysed earlier.
+- The repository tree contains a README, not the app's implementation source. The release is a Magisk distribution of modified Xiaomi AOD.
+- Maintainer release notes claim additional depth/magazine, animal, AI wallpaper and large-clock options; increased template capacity; and transition changes. These remain maintainer claims unless independently confirmed by static/runtime evidence.
+- The February 2026 notes explicitly remove forced full-screen AOD support following bootloop concerns. “All devices” in release wording does not prove Samsung compatibility.
+- Useful for mapping styles and studying the already supplied binary, not a portable AOD implementation or a complete HyperOS 4 UI specification. No new download, execution or installation was needed.
+
+No Aurora code change or new APK was required for this source review. v26 remains the latest validated GitHub-built release; complete settings restyling remains outstanding.
