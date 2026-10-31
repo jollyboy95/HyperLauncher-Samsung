@@ -287,7 +287,14 @@ public class AuroraActivity extends Activity {
                 list.addView(stack,new LinearLayout.LayoutParams(-1,-2));
             }else list.addView(front);
         }
-        ScrollView scroll = new NotificationScrollView(this);
+        NotificationScrollView scroll = new NotificationScrollView(this);
+        if (mode == NotificationDisplay.STACK && !notificationsExpanded && items.size() > 1) {
+            scroll.setContentDescription("Notification stack. Swipe up or tap Expand to browse notifications.");
+            scroll.setExpandStack(() -> {
+                notificationsExpanded = true;
+                renderNotices(NotificationHub.get().snapshot());
+            });
+        }
         scroll.setFillViewport(false);
         scroll.addView(list);
         int rows = Math.min(limit, items.size());

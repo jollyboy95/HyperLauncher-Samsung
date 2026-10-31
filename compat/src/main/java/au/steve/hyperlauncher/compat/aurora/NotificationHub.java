@@ -91,10 +91,30 @@ public final class NotificationHub {
     }
 
     public void upsert(StatusBarNotification sbn, String appName) {
+        upsert(sbn, appName, android.app.NotificationManager.IMPORTANCE_UNSPECIFIED,
+                android.service.notification.NotificationListenerService.Ranking.VISIBILITY_NO_OVERRIDE, false);
+    }
+
+    public void upsert(StatusBarNotification sbn, String appName, int importance, int visibilityOverride,
+                       boolean suspended) {
         if (sbn == null) return;
-        if (sbn.isOngoing()) { remove(sbn.getKey()); return; }
         Notification n = sbn.getNotification();
         if (n == null) return;
+        int visibility = visibilityOverride == android.service.notification.NotificationListenerService.Ranking.VISIBILITY_NO_OVERRIDE
+                ? n.visibility : visibilityOverride;
+        boolean urgent = Notification.CATEGORY_CALL.equals(n.category) || Notification.CATEGORY_ALARM.equals(n.category);
+        boolean system = "android".equals(sbn.getPackageName()) || "com.android.systemui".equals(sbn.getPackageName())
+                || "com.android.settings".equals(sbn.getPackageName());
+        boolean quietSystem = system && Notification.CATEGORY_SYSTEM.equals(n.category)
+                && importance != android.app.NotificationManager.IMPORTANCE_UNSPECIFIED
+                && importance < android.app.NotificationManager.IMPORTANCE_DEFAULT;
+        if (suspended || visibility == Notification.VISIBILITY_SECRET
+                || importance == android.app.NotificationManager.IMPORTANCE_NONE
+                || importance == android.app.NotificationManager.IMPORTANCE_MIN
+                || (!urgent && (sbn.isOngoing() || (n.flags & Notification.FLAG_FOREGROUND_SERVICE) != 0
+                        || Notification.CATEGORY_SERVICE.equals(n.category) || quietSystem))) {
+            remove(sbn.getKey()); return;
+        }
         if ((n.flags & Notification.FLAG_GROUP_SUMMARY) != 0) { remove(sbn.getKey()); return; }
         CharSequence title = n.extras.getCharSequence(Notification.EXTRA_TITLE);
         CharSequence text = n.extras.getCharSequence(Notification.EXTRA_TEXT);

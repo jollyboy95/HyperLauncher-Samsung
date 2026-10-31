@@ -8,12 +8,23 @@ import android.service.notification.StatusBarNotification;
 public final class AuroraNotificationService extends NotificationListenerService {
     private final android.os.Handler main = new android.os.Handler(android.os.Looper.getMainLooper());
     private final Runnable reconcile = this::refreshActive;
-    private void refreshActive() {
+    private void publish(StatusBarNotification sbn, RankingMap map) {
+        if (sbn == null) return;
+        Ranking ranking = new Ranking();
+        if (map != null && map.getRanking(sbn.getKey(), ranking)) {
+            int visibility = android.os.Build.VERSION.SDK_INT >= 31
+                    ? ranking.getLockscreenVisibilityOverride() : Ranking.VISIBILITY_NO_OVERRIDE;
+            NotificationHub.get().upsert(sbn, appName(sbn), ranking.getImportance(), visibility, ranking.isSuspended());
+        } else NotificationHub.get().upsert(sbn, appName(sbn));
+    }
+    @Override public void onNotificationRankingUpdate(RankingMap map) { refreshActive(map); }
+    private void refreshActive() { refreshActive(getCurrentRanking()); }
+    private void refreshActive(RankingMap map) {
         try {
             StatusBarNotification[] active = getActiveNotifications();
             if (active == null) return;
             java.util.Set<String> keys = new java.util.HashSet<>();
-            for (StatusBarNotification item : active) keys.add(item.getKey());
+            for (StatusBarNotification item : active) { keys.add(item.getKey()); publish(item, map); }
             for (NotificationHub.Item item : NotificationHub.get().snapshot())
                 if (!keys.contains(item.key)) NotificationHub.get().remove(item.key);
         } catch (SecurityException disconnected) { NotificationHub.get().setConnected(false); }
@@ -40,7 +51,7 @@ public final class AuroraNotificationService extends NotificationListenerService
         try {
             StatusBarNotification[] active = getActiveNotifications();
             if (active == null) return;
-            for (StatusBarNotification sbn : active) NotificationHub.get().upsert(sbn, appName(sbn));
+            for (StatusBarNotification sbn : active) publish(sbn, getCurrentRanking());
         } catch (SecurityException ignored) {
             NotificationHub.get().setConnected(false);
         }
@@ -53,7 +64,7 @@ public final class AuroraNotificationService extends NotificationListenerService
     }
 
     @Override public void onNotificationPosted(StatusBarNotification sbn) {
-        NotificationHub.get().upsert(sbn, appName(sbn));
+        publish(sbn, getCurrentRanking());
     }
 
     @Override public void onNotificationRemoved(StatusBarNotification sbn) {

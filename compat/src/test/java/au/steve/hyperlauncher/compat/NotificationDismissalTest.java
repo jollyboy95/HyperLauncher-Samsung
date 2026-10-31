@@ -129,4 +129,54 @@ public class NotificationDismissalTest {
         hub.upsert(initial,"Messages");assertTrue(hub.snapshot().isEmpty());
     }
 
+    @Test public void swipeUpExpandsCollapsedStackWithoutOpeningOrDismissing() {
+        Context context=RuntimeEnvironment.getApplication();
+        AuroraConfig config=new AuroraConfig(context);
+        config.prefs().edit().clear().putBoolean("referenceStyleV1",true)
+                .putInt("notificationMode",1).commit();
+        NotificationHub hub=NotificationHub.get();hub.setConnected(false);
+        hub.upsert(notification(context,1,0),"Messages");hub.upsert(notification(context,2,0),"Messages");
+        try(var activity=Robolectric.buildActivity(AuroraActivity.class).setup().visible()) {
+            View root=activity.get().getWindow().getDecorView();
+            View stack=findDescription(root,"Notification stack.",true);assertNotNull(stack);
+            stack.measure(View.MeasureSpec.makeMeasureSpec(360,View.MeasureSpec.EXACTLY),
+                    View.MeasureSpec.makeMeasureSpec(160,View.MeasureSpec.EXACTLY));
+            stack.layout(0,0,360,160);
+            event(stack,0,MotionEvent.ACTION_DOWN,100,130);
+            event(stack,20,MotionEvent.ACTION_MOVE,100,90);
+            event(stack,40,MotionEvent.ACTION_UP,100,10);
+            assertNull(findDescription(root,"Notification stack.",true));
+            assertNull(stack.getParent());
+            assertEquals(2,hub.snapshot().size());
+        } finally {hub.setConnected(false);}
+    }
+    @Test public void cancelledStackDragDoesNotExpand() {
+        Context context=RuntimeEnvironment.getApplication();
+        NotificationScrollView scroll=new NotificationScrollView(context);
+        scroll.addView(new TextView(context));scroll.layout(0,0,360,160);
+        int[] expanded={0};scroll.setExpandStack(()->expanded[0]++);
+        event(scroll,0,MotionEvent.ACTION_DOWN,100,130);
+        event(scroll,20,MotionEvent.ACTION_MOVE,100,60);
+        event(scroll,40,MotionEvent.ACTION_CANCEL,100,10);
+        assertEquals(0,expanded[0]);
+    }
+    @Test public void hiddenAndServiceNotificationsAreRemovedButImportantSystemAlertsRemain() {
+        Context context=RuntimeEnvironment.getApplication();NotificationHub hub=NotificationHub.get();hub.setConnected(false);
+        int unspecified=android.service.notification.NotificationListenerService.Ranking.VISIBILITY_NO_OVERRIDE;
+        StatusBarNotification normal=notification(context,1,0);
+        hub.upsert(normal,"Messages");assertEquals(1,hub.snapshot().size());
+        hub.upsert(normal,"Messages",3,Notification.VISIBILITY_SECRET,false);assertTrue(hub.snapshot().isEmpty());
+        hub.upsert(normal,"Messages",1,unspecified,false);assertTrue(hub.snapshot().isEmpty());
+        hub.upsert(normal,"Messages",3,unspecified,true);assertTrue(hub.snapshot().isEmpty());
+        hub.upsert(notification(context,2,Notification.FLAG_FOREGROUND_SERVICE),"Service");assertTrue(hub.snapshot().isEmpty());
+        Notification n=new Notification.Builder(context,"system").setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setCategory(Notification.CATEGORY_SYSTEM).setContentTitle("System status").build();
+        StatusBarNotification system=new StatusBarNotification("android","android",3,null,1,1,0,n,
+                android.os.Process.myUserHandle(),3);
+        hub.upsert(system,"Android System",2,unspecified,false);assertTrue(hub.snapshot().isEmpty());
+        hub.upsert(system,"Android System",4,unspecified,false);assertEquals(1,hub.snapshot().size());
+        n.category=Notification.CATEGORY_ALARM;n.flags|=Notification.FLAG_ONGOING_EVENT;
+        hub.upsert(system,"Alarm",4,unspecified,false);assertEquals(1,hub.snapshot().size());
+        hub.setConnected(false);
+    }
 }
