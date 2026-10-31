@@ -32,7 +32,7 @@ public final class AuroraActivity extends Activity {
     private final android.os.Handler handler = new android.os.Handler(android.os.Looper.getMainLooper());
     private final Runnable ticker = new Runnable() {
         @Override public void run() {
-            if (clock != null) clock.setText(new SimpleDateFormat(prefs != null && prefs.getBoolean("clock12", false) ? "h:mm" : "HH:mm", Locale.getDefault()).format(new Date()));
+            if (clock != null) clock.setText(formatClock());
             handler.postDelayed(this, 1000);
         }
     };
@@ -57,7 +57,7 @@ public final class AuroraActivity extends Activity {
         content.setOrientation(LinearLayout.VERTICAL);
         content.setGravity(Gravity.CENTER_HORIZONTAL);
         int pad = (int)(24 * getResources().getDisplayMetrics().density);
-        content.setPadding(pad, (int)(92 * getResources().getDisplayMetrics().density), pad, pad);
+        content.setPadding(pad, (int)(64 * getResources().getDisplayMetrics().density), pad, pad);
         TextView heading = new TextView(this);
         heading.setText(new SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()).format(new Date()).toUpperCase(Locale.getDefault()));
         heading.setTextColor(0xFFC1D9FF);
@@ -66,11 +66,13 @@ public final class AuroraActivity extends Activity {
         heading.setGravity(Gravity.CENTER);
         content.addView(heading);
         clock = new TextView(this);
-        clock.setTextColor(0xFFB2D8FF);
-        clock.setLetterSpacing(-0.09f);
+        clock.setTextColor(0xBBD0E9FF);
+        clock.setLetterSpacing(-0.075f);
+        clock.setLineSpacing(-28 * getResources().getDisplayMetrics().density, 0.84f);
+        clock.setMaxLines(2);
         clock.setIncludeFontPadding(false);
         applyClockStyle();
-        clock.setTextSize(prefs.getInt("clockSize", 112));
+        clock.setTextSize(prefs.getInt("clockSize", 160));
         clock.setGravity(Gravity.CENTER);
         content.addView(clock);
         TextView date = new TextView(this);
@@ -83,7 +85,7 @@ public final class AuroraActivity extends Activity {
         foreground = new ImageView(this);
         foreground.setScaleType(ImageView.ScaleType.FIT_CENTER);
         FrameLayout.LayoutParams fgParams = new FrameLayout.LayoutParams(-1, (int)(260 * getResources().getDisplayMetrics().density), Gravity.TOP);
-        fgParams.topMargin = (int)(110 * getResources().getDisplayMetrics().density);
+        fgParams.topMargin = (int)(115 * getResources().getDisplayMetrics().density);
         String cutout = prefs.getString("foreground", null);
         if (cutout != null) try { foreground.setImageURI(Uri.parse(cutout)); } catch (Exception ignored) {}
         // Overlay above clock; foreground must be a transparent PNG to create a depth illusion.
@@ -153,6 +155,10 @@ public final class AuroraActivity extends Activity {
         root.bringChildToFront(photo);
         setContentView(root);
     }
+    private String formatClock(){
+        String time=new SimpleDateFormat(prefs!=null&&prefs.getBoolean("clock12",false)?"hhmm":"HHmm",Locale.getDefault()).format(new Date());
+        return time.substring(0,2)+"\n"+time.substring(2);
+    }
     private void applyClockStyle(){
         if(clock==null)return;
         int style=prefs.getInt("clockStyle",0);
@@ -168,7 +174,7 @@ public final class AuroraActivity extends Activity {
     }
     @Override protected void onResume() {
         super.onResume();
-        if (clock != null) { clock.setTextSize(prefs.getInt("clockSize",112)); applyClockStyle(); }
+        if (clock != null) { clock.setTextSize(prefs.getInt("clockSize",160)); applyClockStyle(); }
         if (foreground != null) {
             String u=prefs.getString("foreground",null);
             foreground.setImageDrawable(null);
