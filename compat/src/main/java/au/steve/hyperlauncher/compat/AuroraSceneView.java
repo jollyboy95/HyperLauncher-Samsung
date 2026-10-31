@@ -105,7 +105,7 @@ public final class AuroraSceneView extends View {
         Typeface dateFace=Typeface.create("sans-serif-medium",Typeface.NORMAL);
         String digits=new SimpleDateFormat(prefs.getBoolean("clock12",false)?"hhmm":"HHmm",Locale.getDefault()).format(new Date());
         int style=prefs.getInt("clockStyle",0);
-        Typeface clockFace=Typeface.create(style==0?"sans-serif-condensed":style==1?"sans-serif-light":"sans-serif",style==0?Typeface.BOLD:Typeface.NORMAL);
+        Typeface clockFace=Typeface.create(style==0?"sans-serif-condensed":style==1?"sans-serif-light":"sans-serif",Typeface.NORMAL);
         int preset=prefs.getInt("clockPreset",0);
         float size=prefs.getInt("clockSize",160);
         int color=clockColour();
@@ -114,25 +114,25 @@ public final class AuroraSceneView extends View {
         measure.setTypeface(clockFace);
         float x=preset==2?145f:195f;
         String hours=digits.substring(0,2),minutes=digits.substring(2);
-        float requested=size*(preset==1?.65f:preset==3?.72f:1f);
+        float requested=size*(preset==1?.65f:preset==3?1.22f:1.12f);
         float maxWidth=preset==1?355f:preset==3?355f:315f;
         float widest=preset==1?measure.measureText(hours+":"+minutes):
             preset==3?measure.measureText(digits):Math.max(measure.measureText(hours),measure.measureText(minutes));
         measure.setTextSize(1f);
         widest=preset==1?measure.measureText(hours+":"+minutes):
             preset==3?measure.measureText(digits):Math.max(measure.measureText(hours),measure.measureText(minutes));
-        float fitted=Math.min(requested,maxWidth/Math.max(.01f,widest));
+        // Editorial uses horizontally compressed, tall digits without shrinking their height.\n        float horizontalScale=preset==3?.62f:1f;\n        float fitted=Math.min(requested,maxWidth/Math.max(.01f,widest*horizontalScale));
         float lineHeight=fitted*.83f;
         float clockHeight=preset==0||preset==2?fitted+lineHeight:fitted;
-        float groupHeight=clockHeight+34f;
-        float top=Math.max(42f,Math.min(722f-groupHeight,116f+safeClockY(prefs.getInt("clockY",0))));
+        float groupHeight=clockHeight+48f;
+        float top=Math.max(42f,Math.min(722f-groupHeight,116f+prefs.getInt("clockY",0)));
         float dateY=top+12f;
         float firstBaseline=top+25f+fitted*.80f;
         text(c,date,x,dateY,12,0xFFE6F1FF,dateFace,true);
         if(preset==1){
             text(c,hours+":"+minutes,195f,firstBaseline,fitted,color,clockFace,true);
         }else if(preset==3){
-            text(c,digits,195f,firstBaseline,fitted,color,clockFace,true);
+            c.save();c.translate(195f,0);c.scale(horizontalScale,1f);\n            text(c,digits,0f,firstBaseline,fitted,color,clockFace,true);\n            c.restore();
         }else{
             text(c,hours,x,firstBaseline,fitted,color,clockFace,true);
             text(c,minutes,x,firstBaseline+lineHeight,fitted,color,clockFace,true);
