@@ -81,3 +81,11 @@ The supplied Aliyun OTA link for popsicle-ota_full-OS4.0.5.0.XPBCNXM-user-17.0-0
 A temporary signed parts-download link supplied by the user returned HTTP 403; its expiry parameter was already past (1 November 2026, 07:53:31 Australia/Sydney). The signed query is intentionally omitted from public notes. A fresh link is needed to inspect that archive.
 
 Final local v27 checks: 66 tests passed with zero failures/errors/skips; debug APK assembled; lint passed with warnings. Eight light/dark/compact rendered framework previews were inspected. No physical phone result is implied.
+
+### Madrid parts archive and v27 GitHub result
+
+The refreshed OS4.0.27.0.XEOCNXM parts download succeeded. Archive size: 87,625,521 bytes; SHA-256 c540087c3ee474f2ff9af6dc3af448677a6ade87fc3bfe7d5e536303787e95c6. Six entries: boot.img, init_boot.img, vendor_boot.img, vbmeta.img, vbmeta_system.img and OS4.0.27.0.XEOCNXM.txt. No APKs are present. Its text metadata declares pre-device madrid, incremental OS4.0.261016.110523633.QCPECN.S, security patch 2026-09-01 and an Android 17 kernel. These declarations were not signature-verified. No images or scripts were run, flashed or imported.
+
+The supplied Madrid full-image and OTA URLs responded successfully to HEAD requests, declaring 15,192,780,521 and 12,463,399,847 bytes respectively. Full firmware bodies were not downloaded. They are distinct from the earlier popsicle build.
+
+GitHub Actions run 41241317331 at application commit 41ccf79 completed successfully: tests, lint, signed release and artifact upload. Downloaded AuroraDepth-v27-1.5.0-hyperos4-signed.apk verified with Android apksigner; its signer SHA-256 matches prior Aurora updates: 9aaec8e03e10ae2b5bc37ef5e9dd55e6e778a0e508ba2e4c9c97b8784c657ce3.
