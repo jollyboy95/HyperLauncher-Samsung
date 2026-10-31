@@ -1,4 +1,4 @@
-# Aurora lock-screen feature coverage (v21)
+# Aurora lock-screen feature coverage (v22)
 
 Aurora implements lock-screen styles and controls for Samsung. It does not install Xiaomi firmware or claim complete native HyperOS parity.
 
@@ -17,7 +17,7 @@ Reference sources checked on 31 October 2026:
 - Photo depth with focused on-device segmentation, including supported VOC people, pets, vehicles and plants; transparent PNG cutouts for other subjects.
 - Muted looping local video wallpapers with lifecycle-based release, static-photo fallback, photo motion and wake fades. Static depth/glass are not applied over video.
 - Saved-design thumbnail gallery: save, swipe, apply and delete up to eight local designs. Privacy settings are not part of a design.
-- List, Stack and Count notification display modes with expand/collapse, bounded scrolling, open after authentication, sideways dismissal for clearable cards and locked-content redaction.
+- List, Stack and Count notification display modes with expand/collapse, bounded scrolling, open after authentication, horizontal swipe dismissal, individual × buttons and Clear all for clearable notifications (including beyond the display limit) and locked-content redaction.
 - Real active Android media sessions: title/artist/artwork, previous/play-pause/next and seeking where supported. Notification access is required. Media details follow the notification privacy setting.
 - Actual battery level and next alarm, plus configurable flashlight/camera/alarm/phone/settings shortcuts. Locked camera uses the secure camera intent.
 - Existing settings and clock position are preserved on update. Selecting a different template or resetting the editor is an explicit change.
@@ -33,4 +33,4 @@ Reference sources checked on 31 October 2026:
 
 ## Verification
 
-Framework launch/resume/draw tests, all template/material combinations, editor/gallery interactions, notification redaction and stack expansion, notification actions, real media-controller routing, snapshot numeric-type round trips and preservation of existing clock settings are covered by automated tests. Local visual QA uses the supplied pug wallpaper, which is not committed to the public repository.
+Framework launch/resume/draw tests, all template/material combinations, editor/gallery interactions, notification redaction and stack expansion, notification actions, real media-controller routing, snapshot numeric-type round trips and preservation of existing clock settings are covered by automated tests. Dismissal tests exercise actual notification-service cancellation, protected items, disconnected access, buttons and swipes inside a scrolling list. Local visual QA uses the supplied pug wallpaper, which is not committed to the public repository.

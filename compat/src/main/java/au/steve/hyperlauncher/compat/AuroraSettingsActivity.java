@@ -338,7 +338,7 @@ public final class AuroraSettingsActivity extends Activity {
                 config.prefs().edit().putInt("leftShortcut", i).apply()));
         sheet.addView(choiceRow("Right shortcut", shortcuts, config.rightShortcut(), i ->
                 config.prefs().edit().putInt("rightShortcut", i).apply()));
-        sheet.addView(info("Tap a notification to open it after unlock. Swipe a dismissible card sideways to clear it. List shows cards, Stack shows one card, and Count hides cards until expanded. Tap the count to expand. Music controls use your active player after notification access is enabled."));
+        sheet.addView(info("Tap a notification to open it after unlock. Swipe a dismissible card sideways, tap its × button, or use Clear all. List shows cards, Stack shows one card, and Count hides cards until expanded. Tap the count to expand. Music controls use your active player after notification access is enabled."));
         sheet.addView(toggle("Show live notifications", config.showNotifications(), c ->
                 config.prefs().edit().putBoolean("showNotifications", c).apply()));
         sheet.addView(toggle("Hide content until unlock", config.hideNotificationContent(), c ->

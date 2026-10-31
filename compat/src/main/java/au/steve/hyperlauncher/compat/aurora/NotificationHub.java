@@ -53,11 +53,24 @@ public final class NotificationHub {
     private final CopyOnWriteArrayList<Listener> listeners = new CopyOnWriteArrayList<>();
     private final Handler main = new Handler(Looper.getMainLooper());
     private volatile boolean connected;
-    private Consumer<String> dismissAction;
+    private volatile Consumer<String> dismissAction;
+    private volatile Runnable clearAllAction;
+    public enum DismissResult { REQUESTED, NOT_CLEARABLE, UNAVAILABLE }
 
     public void setDismissAction(Consumer<String> action) { dismissAction = action; }
-    public void dismiss(Item item) {
-        if (item.dismissible && dismissAction != null) dismissAction.accept(item.key);
+    public void setClearAllAction(Runnable action) { clearAllAction = action; }
+    public DismissResult dismiss(Item item) {
+        if (!item.dismissible) return DismissResult.NOT_CLEARABLE;
+        Consumer<String> action = dismissAction;
+        if (action == null) return DismissResult.UNAVAILABLE;
+        try { action.accept(item.key); return DismissResult.REQUESTED; }
+        catch (SecurityException | IllegalStateException unavailable) { return DismissResult.UNAVAILABLE; }
+    }
+    public DismissResult clearAll() {
+        Runnable action = clearAllAction;
+        if (action == null) return DismissResult.UNAVAILABLE;
+        try { action.run(); return DismissResult.REQUESTED; }
+        catch (SecurityException | IllegalStateException unavailable) { return DismissResult.UNAVAILABLE; }
     }
 
     public static NotificationHub get() {
@@ -71,16 +84,18 @@ public final class NotificationHub {
     public void setConnected(boolean value) {
         connected = value;
         if (!value) {
+            dismissAction = null; clearAllAction = null;
             synchronized (items) { items.clear(); }
             dispatch();
         }
     }
 
     public void upsert(StatusBarNotification sbn, String appName) {
-        if (sbn == null || sbn.isOngoing()) return;
+        if (sbn == null) return;
+        if (sbn.isOngoing()) { remove(sbn.getKey()); return; }
         Notification n = sbn.getNotification();
         if (n == null) return;
-        if ((n.flags & Notification.FLAG_GROUP_SUMMARY) != 0) return;
+        if ((n.flags & Notification.FLAG_GROUP_SUMMARY) != 0) { remove(sbn.getKey()); return; }
         CharSequence title = n.extras.getCharSequence(Notification.EXTRA_TITLE);
         CharSequence text = n.extras.getCharSequence(Notification.EXTRA_TEXT);
         if (text == null) text = n.extras.getCharSequence(Notification.EXTRA_BIG_TEXT);

@@ -222,6 +222,17 @@ public final class AuroraActivity extends Activity {
         if (config.statusWidgets()) addStatusWidgets();
         if (config.showMedia() && media != null && media.hasSession()) addMediaCard(redact);
         if (!config.showNotifications() || items == null || items.isEmpty()) return;
+        boolean canClear = false;
+        for (NotificationHub.Item item : items) if (item.dismissible) { canClear = true; break; }
+        if (canClear) {
+            TextView clearAll = label("Clear all", 12, 0xFFE7F2FF, true);
+            clearAll.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
+            clearAll.setContentDescription("Clear all dismissible notifications");
+            clearAll.setPadding(dp(12), dp(8), dp(12), dp(8));
+            clearAll.setMinHeight(dp(48));
+            clearAll.setOnClickListener(v -> dismissalFeedback(NotificationHub.get().clearAll()));
+            notices.addView(clearAll);
+        }
         int mode = config.notificationMode();
         if (mode != lastNotificationMode) { notificationsExpanded = false; lastNotificationMode = mode; }
         if (NotificationDisplay.showCount(mode, items.size())) {
@@ -236,7 +247,7 @@ public final class AuroraActivity extends Activity {
         int limit = NotificationDisplay.visibleCards(mode, notificationsExpanded, items.size());
         if (limit == 0) return;
         for (int i = 0; i < items.size() && i < limit; i++) list.addView(card(items.get(i), redact));
-        ScrollView scroll = new ScrollView(this);
+        ScrollView scroll = new NotificationScrollView(this);
         scroll.setFillViewport(false);
         scroll.addView(list);
         int rows = Math.min(limit, items.size());
@@ -373,19 +384,8 @@ public final class AuroraActivity extends Activity {
                 Toast.makeText(this, "Notification is no longer available", Toast.LENGTH_SHORT).show();
             } });
         });
-        row.setOnTouchListener(new View.OnTouchListener() {
-            float startX, startY;
-            public boolean onTouch(View v, MotionEvent e) {
-                if (e.getAction() == MotionEvent.ACTION_DOWN) { startX = e.getX(); startY = e.getY(); return true; }
-                if (e.getAction() == MotionEvent.ACTION_UP) {
-                    if (Math.abs(e.getX() - startX) > dp(72) && Math.abs(e.getY() - startY) < dp(50))
-                        NotificationHub.get().dismiss(item);
-                    else if (Math.abs(e.getY() - startY) < dp(12)) v.performClick();
-                    return true;
-                }
-                return e.getAction() != MotionEvent.ACTION_CANCEL;
-            }
-        });
+        row.setOnTouchListener(new NotificationSwipeListener(this,
+                () -> dismissalFeedback(NotificationHub.get().dismiss(item))));
         ImageView icon = new ImageView(this);
         LinearLayout.LayoutParams ip = new LinearLayout.LayoutParams(dp(28), dp(28));
         ip.rightMargin = dp(12);
@@ -407,7 +407,21 @@ public final class AuroraActivity extends Activity {
         if (!body.isEmpty()) col.addView(msg);
         col.addView(when);
         row.addView(col, new LinearLayout.LayoutParams(0, -2, 1f));
+        if (item.dismissible) {
+            TextView clear = label("×", 24, 0xFFE7F2FF, true);
+            clear.setGravity(Gravity.CENTER);
+            clear.setContentDescription("Clear notification from " + item.appName);
+            clear.setOnClickListener(v -> dismissalFeedback(NotificationHub.get().dismiss(item)));
+            row.addView(clear, new LinearLayout.LayoutParams(dp(48), dp(48)));
+        }
         return row;
+    }
+
+    private void dismissalFeedback(NotificationHub.DismissResult result) {
+        if (result == NotificationHub.DismissResult.NOT_CLEARABLE)
+            Toast.makeText(this, "Android keeps this notification active", Toast.LENGTH_SHORT).show();
+        else if (result == NotificationHub.DismissResult.UNAVAILABLE)
+            Toast.makeText(this, "Notification access disconnected. Re-enable it in Features.", Toast.LENGTH_LONG).show();
     }
 
     private TextView label(String text, float size, int color, boolean medium) {
