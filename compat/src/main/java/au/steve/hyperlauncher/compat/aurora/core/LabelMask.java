@@ -1,0 +1,91 @@
+package au.steve.hyperlauncher.compat.aurora.core;
+
+/**
+ * Turns DeepLab PASCAL VOC logits into a subject confidence map.
+ * Class 12 is dog, so animal wallpapers (including pugs) are first-class.
+ */
+public final class LabelMask {
+    public static final int BACKGROUND = 0;
+    public static final int BIRD = 3;
+    public static final int CAT = 8;
+    public static final int COW = 10;
+    public static final int DOG = 12;
+    public static final int HORSE = 13;
+    public static final int PERSON = 15;
+    public static final int SHEEP = 17;
+
+    private static final int[] PRIORITY = {DOG, CAT, HORSE, SHEEP, COW, BIRD, PERSON};
+
+    private LabelMask() {}
+
+    public static boolean isSubjectClass(int cls) {
+        for (int p : PRIORITY) if (p == cls) return true;
+        return false;
+    }
+
+    /**
+     * @param logits HWC layout, length = height * width * classes
+     * @return per-pixel confidence in 0..1 for the chosen foreground subject
+     */
+    public static float[] selectSubject(float[] logits, int height, int width, int classes) {
+        if (height <= 0 || width <= 0 || classes <= 1 || logits == null
+                || logits.length != (long) height * width * classes) {
+            throw new IllegalArgumentException("Invalid logits");
+        }
+        int pixels = height * width;
+        int[] argmax = new int[pixels];
+        float[] peak = new float[pixels];
+        int[] counts = new int[classes];
+        for (int i = 0; i < pixels; i++) {
+            int base = i * classes;
+            int best = 0;
+            float high = logits[base];
+            for (int c = 1; c < classes; c++) {
+                float v = logits[base + c];
+                if (v > high) {
+                    high = v;
+                    best = c;
+                }
+            }
+            argmax[i] = best;
+            peak[i] = high;
+            counts[best]++;
+        }
+        int chosen = chooseClass(counts, pixels);
+        float[] confidence = new float[pixels];
+        if (chosen <= 0) return confidence;
+        for (int i = 0; i < pixels; i++) {
+            if (argmax[i] == chosen) confidence[i] = clamp01(peak[i]);
+        }
+        return confidence;
+    }
+
+    public static int chooseClass(int[] counts, int pixels) {
+        int minArea = Math.max(8, pixels / 250);
+        for (int cls : PRIORITY) {
+            if (cls < counts.length && counts[cls] >= minArea) return cls;
+        }
+        int best = 0;
+        int high = minArea - 1;
+        for (int c = 1; c < counts.length; c++) {
+            if (isFurniture(c)) continue;
+            if (counts[c] > high) {
+                high = counts[c];
+                best = c;
+            }
+        }
+        return best;
+    }
+
+    public static boolean isFurniture(int cls) {
+        return cls == 1 || cls == 2 || cls == 4 || cls == 5 || cls == 6 || cls == 7
+                || cls == 9 || cls == 11 || cls == 14 || cls == 16 || cls == 18
+                || cls == 19 || cls == 20;
+    }
+
+    private static float clamp01(float v) {
+        if (v < 0f) return 0f;
+        if (v > 1f) return 1f;
+        return v;
+    }
+}

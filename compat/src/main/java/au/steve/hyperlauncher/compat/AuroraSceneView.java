@@ -1,173 +1,286 @@
 package au.steve.hyperlauncher.compat;
 
+import android.animation.ValueAnimator;
 import android.content.Context;
-import android.content.SharedPreferences;
-import android.graphics.*;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.LinearGradient;
+import android.graphics.Paint;
+import android.graphics.RadialGradient;
+import android.graphics.RectF;
+import android.graphics.Shader;
+import android.graphics.Typeface;
 import android.net.Uri;
 import android.view.View;
-import au.steve.hyperlauncher.compat.aurora.core.WallpaperTransform;
+import android.view.animation.DecelerateInterpolator;
+import au.steve.hyperlauncher.compat.aurora.AuroraConfig;
+import au.steve.hyperlauncher.compat.aurora.core.ClockLayout;
 import au.steve.hyperlauncher.compat.aurora.core.ColorMath;
+import au.steve.hyperlauncher.compat.aurora.core.WallpaperTransform;
+import java.io.File;
 import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
-/** Shared, resolution-independent renderer for the lock screen and settings preview. */
+/** Shared renderer: wallpaper, clock, then segmented foreground. */
 public final class AuroraSceneView extends View {
-    private final Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);
-    private final SharedPreferences prefs;
-    private Bitmap background,foreground;
+    private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+    private final Paint measure = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final AuroraConfig config;
+    private Bitmap background;
+    private Bitmap foreground;
     private boolean preview;
     private boolean editing;
     private int dragClockStart;
-    private String loadedBackground="",loadedForeground="";
-    public AuroraSceneView(Context context,boolean preview){
-        super(context);this.preview=preview;
-        prefs=context.getSharedPreferences("aurora",Context.MODE_PRIVATE);
-        setLayerType(View.LAYER_TYPE_SOFTWARE,null);
+    private String loadedBackground = "";
+    private String loadedForeground = "";
+    private int displayedPreset;
+    private float transition = 1f;
+    private ValueAnimator animator;
+
+    public AuroraSceneView(Context context, boolean preview) {
+        super(context);
+        this.preview = preview;
+        config = new AuroraConfig(context);
+        displayedPreset = config.clockPreset();
+        setLayerType(LAYER_TYPE_HARDWARE, null);
         reload();
     }
-    public void setEditing(boolean value){editing=value;invalidate();}
-    public void startClockDrag(){dragClockStart=prefs.getInt("clockY",0);}
-    public int safeClockY(int desired){
-        int preset=prefs.getInt("clockPreset",0);
-        float size=prefs.getInt("clockSize",160)*(preset==1?0.89f:preset==3?0.72f:1.12f);
-        // Keep both rows inside the composition, even at maximum font size.
-        int minimum=(int)Math.ceil(size*0.82f+54f-170f);
-        int maximum=(int)Math.floor(720f-170f-(preset==1?30f:preset==3?size*0.1f:size*0.77f));
-        return Math.max(minimum,Math.min(Math.max(minimum,maximum),desired));
-    }
-    public void moveClock(float delta){
-        int y=safeClockY(dragClockStart+Math.round(delta*844f/Math.max(1,getHeight())));
-        prefs.edit().putInt("clockY",y).apply();invalidate();
-    }
-    private Bitmap load(String value){
-        if(value==null)return null;
-        try(InputStream stream=getContext().getContentResolver().openInputStream(Uri.parse(value))){
-            BitmapFactory.Options o=new BitmapFactory.Options();
-            o.inJustDecodeBounds=true;
-            BitmapFactory.decodeStream(stream,null,o);
-            int max=1800;
-            o.inSampleSize=1;
-            while(o.outWidth/o.inSampleSize>max||o.outHeight/o.inSampleSize>max)o.inSampleSize*=2;
-            o.inJustDecodeBounds=false;
-            try(InputStream actual=getContext().getContentResolver().openInputStream(Uri.parse(value))){
-                return BitmapFactory.decodeStream(actual,null,o);
-            }
-        }catch(Exception ignored){return null;}
-    }
-    public void reload(){
-        String bg=prefs.getString("wallpaper",null),fg=prefs.getString("foreground",null);
-        if(!String.valueOf(bg).equals(loadedBackground)){
-            background=load(bg);loadedBackground=String.valueOf(bg);
-        }
-        if(!String.valueOf(fg).equals(loadedForeground)){
-            foreground=load(fg);loadedForeground=String.valueOf(fg);
-        }
+
+    public void setEditing(boolean value) {
+        editing = value;
         invalidate();
     }
-    private void imageCover(Canvas canvas,Bitmap bitmap,float w,float h){
-        WallpaperTransform t=WallpaperTransform.compute(bitmap.getWidth(),bitmap.getHeight(),w,h,
-            prefs.getFloat("wallpaperZoom",1f),prefs.getFloat("wallpaperFocusX",.5f),
-            prefs.getFloat("wallpaperFocusY",.5f));
-        paint.reset();paint.setAntiAlias(true);paint.setFilterBitmap(true);
-        canvas.drawBitmap(bitmap,null,new RectF(t.dx,t.dy,t.dx+bitmap.getWidth()*t.scale,
-            t.dy+bitmap.getHeight()*t.scale),paint);
+
+    public void startClockDrag() {
+        dragClockStart = config.clockY();
     }
-    private int clockColour(){
-        int manual=prefs.getInt("clockColor",0xBFD0E9FF);
-        if(!prefs.getBoolean("autoClockColor",false)||background==null)return manual;
-        int w=background.getWidth(),h=background.getHeight();
-        int[] samples=new int[144];int k=0;
-        for(int y=0;y<12;y++)for(int x=0;x<12;x++)
-            samples[k++]=background.getPixel(Math.min(w-1,(x*2+1)*w/24),
-                Math.min(h-1,(y*2+1)*h/24));
-        return ColorMath.fromSamples(samples);
+
+    public int safeClockY(int desired) {
+        float h = Math.max(1, getHeight());
+        return Math.max((int) (-h * 0.08f), Math.min((int) (h * 0.42f), desired));
     }
-    private void text(Canvas c,String s,float x,float baseline,float size,int color,Typeface face,boolean center){
-        paint.reset();paint.setAntiAlias(true);paint.setColor(color);paint.setTypeface(face);
-        paint.setTextSize(size);paint.setTextAlign(center?Paint.Align.CENTER:Paint.Align.LEFT);
-        c.drawText(s,x,baseline,paint);
+
+    public void moveClock(float delta) {
+        int y = safeClockY(dragClockStart + Math.round(delta));
+        config.prefs().edit().putInt("clockY", y).apply();
+        invalidate();
     }
-    @Override protected void onDraw(Canvas original){
-        super.onDraw(original);
-        float width=getWidth(),height=getHeight();
-        if(width<=0||height<=0)return;
-        // Same virtual coordinate system for both settings preview and full screen.
-        Canvas c=original;
-        c.save();
-        float scale=Math.min(width/390f,height/844f);
-        c.translate((width-390f*scale)/2f,(height-844f*scale)/2f);
-        c.scale(scale,scale);
-        paint.setColor(0xFF061125);c.drawColor(0xFF061125);
-        if(background!=null)imageCover(c,background,390,844);
-        paint.setShader(new LinearGradient(0,0,0,844,new int[]{0xC8000C24,0x05000A1B,0xAF000715},null,Shader.TileMode.CLAMP));
-        c.drawRect(0,0,390,844,paint);paint.setShader(null);
-        String date=new SimpleDateFormat("EEEE, d MMMM",Locale.getDefault()).format(new Date());
-        Typeface dateFace=Typeface.create("sans-serif-medium",Typeface.NORMAL);
-        String digits=new SimpleDateFormat(prefs.getBoolean("clock12",false)?"hhmm":"HHmm",Locale.getDefault()).format(new Date());
-        int style=prefs.getInt("clockStyle",0);
-        Typeface clockFace=Typeface.create(style==0?"sans-serif-condensed":style==1?"sans-serif-light":"sans-serif",Typeface.NORMAL);
-        int preset=prefs.getInt("clockPreset",0);
-        float size=prefs.getInt("clockSize",160);
-        int color=clockColour();
-        // Measure the actual glyphs so the date and clock form one non-overlapping group.
-        Paint measure=new Paint(Paint.ANTI_ALIAS_FLAG);
-        measure.setTypeface(clockFace);
-        float x=preset==2?145f:195f;
-        String hours=digits.substring(0,2),minutes=digits.substring(2);
-        float requested=size*(preset==1?.65f:preset==3?1.22f:1.48f);
-        float maxWidth=preset==1?355f:preset==3?355f:315f;
-        float widest=preset==1?measure.measureText(hours+":"+minutes):
-            preset==3?measure.measureText(digits):Math.max(measure.measureText(hours),measure.measureText(minutes));
+
+    public void animatePreset(int preset) {
+        if (preset == displayedPreset && transition >= 1f) {
+            invalidate();
+            return;
+        }
+        if (animator != null) animator.cancel();
+        displayedPreset = preset;
+        transition = 0f;
+        animator = ValueAnimator.ofFloat(0f, 1f);
+        animator.setDuration(420);
+        animator.setInterpolator(new DecelerateInterpolator());
+        animator.addUpdateListener(a -> {
+            transition = (float) a.getAnimatedValue();
+            invalidate();
+        });
+        animator.start();
+    }
+
+    private Bitmap load(String value) {
+        if (value == null || value.isEmpty()) return null;
+        try {
+            if (value.startsWith("/") || value.startsWith("file:")) {
+                File file = value.startsWith("file:") ? new File(Uri.parse(value).getPath()) : new File(value);
+                return decodeFile(file);
+            }
+            try (InputStream bounds = getContext().getContentResolver().openInputStream(Uri.parse(value))) {
+                BitmapFactory.Options o = new BitmapFactory.Options();
+                o.inJustDecodeBounds = true;
+                BitmapFactory.decodeStream(bounds, null, o);
+                o.inSampleSize = 1;
+                int max = 1800;
+                while (o.outWidth / o.inSampleSize > max || o.outHeight / o.inSampleSize > max) o.inSampleSize *= 2;
+                o.inJustDecodeBounds = false;
+                try (InputStream actual = getContext().getContentResolver().openInputStream(Uri.parse(value))) {
+                    return BitmapFactory.decodeStream(actual, null, o);
+                }
+            }
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private static Bitmap decodeFile(File file) {
+        BitmapFactory.Options o = new BitmapFactory.Options();
+        o.inJustDecodeBounds = true;
+        BitmapFactory.decodeFile(file.getAbsolutePath(), o);
+        o.inSampleSize = 1;
+        int max = 1800;
+        while (o.outWidth / o.inSampleSize > max || o.outHeight / o.inSampleSize > max) o.inSampleSize *= 2;
+        o.inJustDecodeBounds = false;
+        return BitmapFactory.decodeFile(file.getAbsolutePath(), o);
+    }
+
+    public void reload() {
+        String bg = config.wallpaper();
+        String fg = null;
+        if (config.depthEnabled()) {
+            String auto = config.autoForeground();
+            if (auto != null) fg = auto;
+        }
+        if (fg == null) fg = config.foreground();
+        if (!String.valueOf(bg).equals(loadedBackground)) {
+            if (background != null) background.recycle();
+            background = load(bg);
+            loadedBackground = String.valueOf(bg);
+        }
+        if (!String.valueOf(fg).equals(loadedForeground)) {
+            if (foreground != null) foreground.recycle();
+            foreground = load(fg);
+            loadedForeground = String.valueOf(fg);
+        }
+        int preset = config.clockPreset();
+        if (preset != displayedPreset) animatePreset(preset);
+        else invalidate();
+    }
+
+    private void imageCover(Canvas canvas, Bitmap bitmap, float w, float h) {
+        WallpaperTransform t = WallpaperTransform.compute(bitmap.getWidth(), bitmap.getHeight(), w, h,
+                config.wallpaperZoom(), config.wallpaperFocusX(), config.wallpaperFocusY());
+        paint.reset();
+        paint.setAntiAlias(true);
+        paint.setFilterBitmap(true);
+        canvas.drawBitmap(bitmap, null, new RectF(t.dx, t.dy, t.dx + bitmap.getWidth() * t.scale,
+                t.dy + bitmap.getHeight() * t.scale), paint);
+    }
+
+    private int clockColour() {
+        int manual = config.clockColor();
+        if (!config.autoClockColor() || background == null) return manual;
+        int w = background.getWidth();
+        int h = background.getHeight();
+        int[] samples = new int[144];
+        int k = 0;
+        for (int y = 0; y < 12; y++) {
+            for (int x = 0; x < 12; x++) {
+                samples[k++] = background.getPixel(Math.min(w - 1, (x * 2 + 1) * w / 24),
+                        Math.min(h - 1, (y * 2 + 1) * h / 24));
+            }
+        }
+        int auto = ColorMath.fromSamples(samples);
+        int a = Math.round(config.clockOpacity() * 255f);
+        return (a << 24) | (auto & 0x00FFFFFF);
+    }
+
+    private Typeface clockFace() {
+        int style = config.clockStyle();
+        float weight = config.clockWeight();
+        String family = style == 1 ? "sans-serif-thin" : style == 2 ? "sans-serif-light" : "sans-serif-condensed-light";
+        int androidWeight = weight > 0.66f ? Typeface.BOLD : Typeface.NORMAL;
+        return Typeface.create(family, androidWeight);
+    }
+
+    private void text(Canvas c, String s, float x, float baseline, float size, int color, Typeface face, boolean center, float tracking) {
+        paint.reset();
+        paint.setAntiAlias(true);
+        paint.setSubpixelText(true);
+        paint.setColor(color);
+        paint.setTypeface(face);
+        paint.setTextSize(size);
+        paint.setLetterSpacing(tracking);
+        paint.setTextAlign(center ? Paint.Align.CENTER : Paint.Align.LEFT);
+        c.drawText(s, x, baseline, paint);
+    }
+
+    @Override protected void onDraw(Canvas c) {
+        super.onDraw(c);
+        float width = getWidth();
+        float height = getHeight();
+        if (width <= 0 || height <= 0) return;
+        c.drawColor(0xFF071018);
+        if (background != null) imageCover(c, background, width, height);
+        else {
+            paint.reset();
+            paint.setShader(new RadialGradient(width * 0.5f, height * 0.28f, height * 0.55f,
+                    new int[]{0xFF2A4A6A, 0xFF0B1724}, null, Shader.TileMode.CLAMP));
+            c.drawRect(0, 0, width, height, paint);
+            paint.setShader(null);
+        }
+        float dim = config.dimAmount();
+        paint.reset();
+        paint.setShader(new LinearGradient(0, 0, 0, height,
+                new int[]{mix(0xCC050914, dim), mix(0x14050A12, dim * 0.35f), mix(0xB0050910, dim)},
+                new float[]{0f, 0.42f, 1f}, Shader.TileMode.CLAMP));
+        c.drawRect(0, 0, width, height, paint);
+        paint.setShader(null);
+
+        Date now = new Date();
+        String date = new SimpleDateFormat("EEEE  ·  d MMMM", Locale.getDefault()).format(now).toUpperCase(Locale.getDefault());
+        String digits = new SimpleDateFormat(config.clock12() ? "hhmm" : "HHmm", Locale.getDefault()).format(now);
+        String hours = digits.substring(0, 2);
+        String minutes = digits.substring(2);
+        Typeface face = clockFace();
+        Typeface dateFace = Typeface.create("sans-serif-medium", Typeface.NORMAL);
+        measure.setTypeface(face);
         measure.setTextSize(1f);
-        widest=preset==1?measure.measureText(hours+":"+minutes):
-            preset==3?measure.measureText(digits):Math.max(measure.measureText(hours),measure.measureText(minutes));
-        // Editorial uses horizontally compressed, tall digits without shrinking their height.
-        float horizontalScale=preset==3?.62f:(preset==0||preset==2?.78f:1f);
-        float fitted=Math.min(requested,maxWidth/Math.max(.01f,widest*horizontalScale));
-        float lineHeight=fitted*.91f;
-        float clockHeight=preset==0||preset==2?fitted+lineHeight:fitted;
-        float groupHeight=clockHeight+48f;
-        float top=Math.max(42f,Math.min(722f-groupHeight,116f+prefs.getInt("clockY",0)));
-        float dateY=top+12f;
-        float firstBaseline=top+25f+fitted*.80f;
-        text(c,date,x,dateY,12,0xFFE6F1FF,dateFace,true);
-        if(preset==1){
-            text(c,hours+":"+minutes,195f,firstBaseline,fitted,color,clockFace,true);
-        }else if(preset==3){
-            c.save();c.translate(195f,0);c.scale(horizontalScale,1f);
-            text(c,digits,0f,firstBaseline,fitted,color,clockFace,true);
-            c.restore();
-        }else{
-            // Condense each row without reducing its height, preserving the tall HyperOS silhouette.
-            c.save();c.translate(x,0f);c.scale(horizontalScale,1f);
-            text(c,hours,0f,firstBaseline,fitted,color,clockFace,true);
-            text(c,minutes,0f,firstBaseline+lineHeight,fitted,color,clockFace,true);
-            c.restore();
-        }
-        if(editing){
-            paint.reset();paint.setAntiAlias(true);paint.setColor(0x668DC9FF);
-            paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(1.5f);
-            c.drawRoundRect(new RectF(20f,Math.max(20f,top-8f),370f,
-                Math.min(745f,firstBaseline+(preset==0||preset==2?lineHeight:0)+12f)),16,16,paint);
-            paint.setStyle(Paint.Style.FILL);
-        }
-        // Optional transparent PNG foreground is composited above both rows of digits.
-        if(foreground!=null){
-            paint.reset();paint.setAntiAlias(true);paint.setFilterBitmap(true);
-            // Apply the identical crop and focal-point transform to both layers.
-            // A transparent cutout matching the wallpaper canvas now stays registered.
-            WallpaperTransform t=WallpaperTransform.compute(foreground.getWidth(),foreground.getHeight(),390f,844f,
-                prefs.getFloat("wallpaperZoom",1f),prefs.getFloat("wallpaperFocusX",.5f),
-                prefs.getFloat("wallpaperFocusY",.5f));
-            c.drawBitmap(foreground,null,new RectF(t.dx,t.dy,
-                t.dx+foreground.getWidth()*t.scale,t.dy+foreground.getHeight()*t.scale),paint);
-        }
-        if(!preview){
-            text(c,"⌃",195,772,29,0xFFE8F3FF,Typeface.DEFAULT,true);
-            text(c,"SWIPE TO UNLOCK",195,801,10,0xFFD0DDF1,dateFace,true);
+        measure.setLetterSpacing(-0.07f);
+        ClockLayout layout = ClockLayout.compute(config.clockPreset(), width, height, config.clockSize(),
+                config.clockY(), config.clockWidth(), config.clockSpacing(),
+                measure.measureText(hours), measure.measureText(minutes), measure.measureText(hours + ":" + minutes));
+        int color = clockColour();
+        int dateColor = (Math.round(config.clockOpacity() * 210) << 24) | 0x00E8F1FF;
+        text(c, date, layout.dateX, layout.dateY, Math.max(11f, height * 0.016f), dateColor, dateFace, true, 0.28f);
+
+        c.save();
+        c.translate(layout.clockX, 0);
+        c.scale(layout.horizontalScale, layout.verticalScale);
+        if (layout.showColon) {
+            text(c, hours + ":" + minutes, 0f, layout.firstBaseline / layout.verticalScale, layout.fittedSize, color, face, true, -0.06f);
+        } else if (layout.editorialFour) {
+            text(c, digits, 0f, layout.firstBaseline / layout.verticalScale, layout.fittedSize, color, face, true, -0.08f);
+        } else {
+            text(c, hours, 0f, layout.firstBaseline / layout.verticalScale, layout.fittedSize, color, face, true, -0.08f);
+            text(c, minutes, 0f, (layout.firstBaseline + layout.lineHeight) / layout.verticalScale, layout.fittedSize, color, face, true, -0.08f);
         }
         c.restore();
+
+        if (editing) {
+            paint.reset();
+            paint.setAntiAlias(true);
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setStrokeWidth(Math.max(1.5f, width * 0.004f));
+            paint.setColor(0x66D7ECFF);
+            float boxTop = Math.max(height * 0.03f, layout.dateY - height * 0.03f);
+            float boxBot = layout.stacked
+                    ? (layout.firstBaseline + layout.lineHeight + height * 0.02f)
+                    : (layout.firstBaseline + height * 0.02f);
+            c.drawRoundRect(new RectF(width * 0.06f, boxTop, width * 0.94f, boxBot), 28, 28, paint);
+        }
+
+        if (foreground != null) {
+            paint.reset();
+            paint.setAntiAlias(true);
+            paint.setFilterBitmap(true);
+            WallpaperTransform t = WallpaperTransform.compute(foreground.getWidth(), foreground.getHeight(), width, height,
+                    config.wallpaperZoom(), config.wallpaperFocusX(), config.wallpaperFocusY());
+            c.drawBitmap(foreground, null, new RectF(t.dx, t.dy,
+                    t.dx + foreground.getWidth() * t.scale, t.dy + foreground.getHeight() * t.scale), paint);
+        }
+
+        if (!preview) {
+            paint.reset();
+            paint.setAntiAlias(true);
+            paint.setColor(0x55FFFFFF);
+            float cx = width * 0.5f;
+            float cy = height * 0.905f;
+            c.drawRoundRect(new RectF(cx - 18, cy, cx + 18, cy + 5), 4, 4, paint);
+            text(c, "SWIPE UP TO UNLOCK", cx, height * 0.94f, Math.max(10f, height * 0.013f), 0xCCE4EEF8, dateFace, true, 0.22f);
+        }
+    }
+
+    private static int mix(int color, float amount) {
+        int a = Math.round(((color >>> 24) & 0xFF) * Math.max(0f, Math.min(1f, amount)));
+        return (a << 24) | (color & 0x00FFFFFF);
     }
 }

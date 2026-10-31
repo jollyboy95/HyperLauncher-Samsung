@@ -1,12 +1,16 @@
 # HyperLauncher-Samsung
 
-Project to investigate adapting Xiaomi's latest selected HyperOS launcher to a stock Samsung S26 Ultra, with the Xiaomi 18 Pro Max stock HyperOS 4 appearance as the target.
+The `feature/aurora-lockscreen` branch ships **Aurora Depth**, a HyperOS 4-inspired lock-screen preview for Samsung. Install the signed APK from GitHub Actions; it does not replace Samsung Keyguard.
 
-## Implemented
+## Download
 
-The `compat` Android module provides a separate compatibility inspection app. It imports a donor APK through Android's document picker, verifies its hash, parses ARM64 ELF dependencies without executing them, checks runtime visibility on the phone, and exports JSON. It does not register as a home app or replace the current launcher.
+1. Open [Actions → Build Aurora Depth preview](https://github.com/jollyboy95/HyperLauncher-Samsung/actions/workflows/compat.yml).
+2. Open the latest green run on `feature/aurora-lockscreen`.
+3. Download the `AuroraDepth-signed-release` artifact.
 
-Build workflow: [.github/workflows/compat.yml](.github/workflows/compat.yml). Build instructions and limitations: [docs/COMPATIBILITY_PROTOTYPE.md](docs/COMPATIBILITY_PROTOTYPE.md).
+Application ID `au.steve.hyperlauncher.compat` is unchanged so updates install over previous Aurora builds.
+
+Build workflow: [.github/workflows/compat.yml](.github/workflows/compat.yml). Launcher-inspection notes remain in [docs/COMPATIBILITY_PROTOTYPE.md](docs/COMPATIBILITY_PROTOTYPE.md).
 
 ## Validation
 

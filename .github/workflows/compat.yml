@@ -46,10 +46,18 @@ jobs:
           AURORA_KEY_PASSWORD: ${{ secrets.AURORA_KEY_PASSWORD }}
           AURORA_KEY_ALIAS: ${{ secrets.AURORA_KEY_ALIAS }}
         run: gradle --no-daemon :compat:testDebugUnitTest :compat:lintDebug :compat:assembleRelease
+      - name: Name signed APK for download
+        run: |
+          set -euo pipefail
+          CODE=$(sed -n 's/.*versionCode \([0-9][0-9]*\).*/\1/p' compat/build.gradle | head -1)
+          NAME=$(sed -n "s/.*versionName '\\([^']*\\)'.*/\\1/p" compat/build.gradle | head -1)
+          mkdir -p dist
+          cp compat/build/outputs/apk/release/*.apk "dist/AuroraDepth-v${CODE}-${NAME}-signed.apk"
+          ls -lh dist
       - uses: actions/upload-artifact@v4
         with:
           name: AuroraDepth-signed-release
-          path: compat/build/outputs/apk/release/*.apk
+          path: dist/*.apk
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -6,8 +6,9 @@ android {
         applicationId 'au.steve.hyperlauncher.compat'
         minSdk 28
         targetSdk 35
-        versionCode 14
-        versionName '0.9.3-preview'
+        versionCode 15
+        versionName '1.0.0-preview'
+        ndk { abiFilters 'arm64-v8a' }
     }
     signingConfigs {
         release {
@@ -26,6 +27,19 @@ android {
             minifyEnabled false
         }
     }
-    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    androidResources {
+        noCompress 'tflite'
+    }
+    lint {
+        abortOnError true
+        checkReleaseBuilds true
+    }
 }
-dependencies { testImplementation 'junit:junit:4.13.2' }
+dependencies {
+    implementation 'org.tensorflow:tensorflow-lite:2.14.0'
+    testImplementation 'junit:junit:4.13.2'
+}
