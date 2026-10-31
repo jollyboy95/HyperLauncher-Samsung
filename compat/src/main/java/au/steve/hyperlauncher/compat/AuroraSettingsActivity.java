@@ -109,7 +109,8 @@ public final class AuroraSettingsActivity extends Activity {
     private void createPreview(){
         float d=getResources().getDisplayMetrics().density;
         scenePreview=new AuroraSceneView(this,true);
-        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,(int)(560*d));
+        int width=getResources().getDisplayMetrics().widthPixels-(int)(44*d);
+        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,(int)(width*844f/390f));
         panel.addView(scenePreview,lp);
     }
     private void refreshPreview(){if(scenePreview!=null)scenePreview.reload();}
