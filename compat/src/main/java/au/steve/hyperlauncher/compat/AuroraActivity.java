@@ -12,6 +12,7 @@ import android.widget.SeekBar;
 import android.widget.Button;
 import android.widget.ScrollView;
 import au.steve.hyperlauncher.compat.aurora.LockMediaController;
+import au.steve.hyperlauncher.compat.aurora.core.NotificationDisplay;
 import android.app.KeyguardManager;
 import android.content.Intent;
 import android.graphics.Color;
@@ -49,6 +50,7 @@ public final class AuroraActivity extends Activity {
     private AuroraWallpaperHost wallpaperHost;
     private LockMediaController media;
     private boolean notificationsExpanded;
+    private int lastNotificationMode = -1;
     private boolean lastLocked;
     private long lastStatusMinute = -1;
     private TextView leftShortcutView, rightShortcutView;
@@ -90,6 +92,8 @@ public final class AuroraActivity extends Activity {
         np.rightMargin = dp(22);
         np.bottomMargin = dp(118);
         root.addView(notices, np);
+        notices.addOnLayoutChangeListener((v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) ->
+                scene.setBottomContentTop(notices.getChildCount() == 0 ? root.getHeight() : top));
 
         android.view.GestureDetector gestures = new android.view.GestureDetector(this,
                 new android.view.GestureDetector.SimpleOnGestureListener() {
@@ -218,9 +222,10 @@ public final class AuroraActivity extends Activity {
         if (config.statusWidgets()) addStatusWidgets();
         if (config.showMedia() && media != null && media.hasSession()) addMediaCard(redact);
         if (!config.showNotifications() || items == null || items.isEmpty()) return;
-        boolean stacked = config.notificationStack() && items.size() > 1;
-        if (stacked) {
-            TextView count = label(items.size() + " notifications  ·  "
+        int mode = config.notificationMode();
+        if (mode != lastNotificationMode) { notificationsExpanded = false; lastNotificationMode = mode; }
+        if (NotificationDisplay.showCount(mode, items.size())) {
+            TextView count = label(items.size() + (items.size() == 1 ? " notification  ·  " : " notifications  ·  ")
                     + (notificationsExpanded ? "Collapse" : "Expand"), 12, 0xFFE7F2FF, true);
             count.setPadding(dp(12), dp(8), dp(12), dp(8));
             count.setOnClickListener(v -> { notificationsExpanded = !notificationsExpanded; renderNotices(NotificationHub.get().snapshot()); });
@@ -228,7 +233,8 @@ public final class AuroraActivity extends Activity {
         }
         LinearLayout list = new LinearLayout(this);
         list.setOrientation(LinearLayout.VERTICAL);
-        int limit = stacked && !notificationsExpanded ? 1 : 8;
+        int limit = NotificationDisplay.visibleCards(mode, notificationsExpanded, items.size());
+        if (limit == 0) return;
         for (int i = 0; i < items.size() && i < limit; i++) list.addView(card(items.get(i), redact));
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(false);

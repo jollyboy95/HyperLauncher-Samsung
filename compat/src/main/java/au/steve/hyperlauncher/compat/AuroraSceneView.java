@@ -18,6 +18,7 @@ import android.view.View;
 import android.view.animation.DecelerateInterpolator;
 import au.steve.hyperlauncher.compat.aurora.AuroraConfig;
 import au.steve.hyperlauncher.compat.aurora.DepthEngine;
+import au.steve.hyperlauncher.compat.aurora.core.NotificationDisplay;
 import au.steve.hyperlauncher.compat.aurora.core.ClockLayout;
 import au.steve.hyperlauncher.compat.aurora.core.ColorMath;
 import au.steve.hyperlauncher.compat.aurora.core.WallpaperTransform;
@@ -41,6 +42,7 @@ public final class AuroraSceneView extends View {
     private boolean videoReady;
     private boolean drawingClock;
     private int materialOverride = -1;
+    private float bottomContentTop = Float.MAX_VALUE;
     private float frameZoom = 1f, frameFocusX = .5f, frameFocusY = .5f;
     private final long motionStart = android.os.SystemClock.uptimeMillis();
     private String loadedBackground = "";
@@ -81,6 +83,10 @@ public final class AuroraSceneView extends View {
         config.saveClockPosition(dragClockX + deltaX / Math.max(1, getWidth()),
                 safeClockY(dragClockStart + Math.round(deltaY)), getHeight());
         invalidate();
+    }
+
+    public void setBottomContentTop(float y) {
+        if (bottomContentTop != y) { bottomContentTop = y; invalidate(); }
     }
 
     public void setVideoReady(boolean value) { videoReady = value; invalidate(); }
@@ -336,7 +342,8 @@ public final class AuroraSceneView extends View {
                     for (int i = 0; i < day.length(); i++) text(c, day.substring(i, i + 1), width * .92f,
                             height * .12f + i * height * .025f, height * .019f, dateColor, dateFace, true, 0);
                 }
-                text(c, date, width * .5f, height * .87f, height * .014f, dateColor, dateFace, true, .04f);
+                text(c, date, width * .5f, config.clockPreset() == 10 ? height * .35f
+                        : NotificationDisplay.dateBaseline(height, bottomContentTop), height * .014f, dateColor, dateFace, true, .04f);
             }
         }
 
@@ -368,7 +375,7 @@ public final class AuroraSceneView extends View {
     private void drawPoster(Canvas c, String digits, int color, boolean front, float w, float h) {
         int preset = config.clockPreset();
         Typeface face = Typeface.create(Typeface.create("sans-serif-condensed", Typeface.NORMAL),
-                Math.round(650 + config.clockWeight() * 250), false);
+                Math.round(preset == 9 ? 100 + config.clockWeight() * 500 : 650 + config.clockWeight() * 250), false);
         c.save();
         c.translate(w * config.clockX(), config.clockYForHeight(h));
         c.scale(config.clockSize() / 168f, config.clockStretch(), w / 2, h * .3f);
@@ -376,7 +383,28 @@ public final class AuroraSceneView extends View {
         materialOverride = front ? (config.minutesMaterial() < 0 ? 2 : config.minutesMaterial())
                 : (config.hoursMaterial() < 0 ? 0 : config.hoursMaterial());
         String pair = front ? digits.substring(2) : digits.substring(0, 2);
-        if (preset == 5) {
+        if (preset == 9 || preset == 10) {
+            if (!front) boxText(c, digits, new RectF(w*.07f,h*.08f,w*.93f,
+                    h*(preset == 9 ? .65f : .31f)), color, face);
+        } else if (preset == 11) {
+            if (front) {
+                materialOverride = config.hoursMaterial() < 0 ? 0 : config.hoursMaterial();
+                Typeface serif = Typeface.create("serif", Typeface.ITALIC);
+                boxText(c, digits.substring(0,2) + ":" + digits.substring(2),
+                        new RectF(w*.20f,h*.55f,w*.80f,h*.63f), color, serif);
+            } else {
+                String title = config.headline();
+                if (title.isEmpty()) title = new SimpleDateFormat("EEEE", Locale.getDefault()).format(new Date()).toUpperCase(Locale.getDefault());
+                materialOverride = 0;
+                boxText(c, title, new RectF(w*.08f,h*.09f,w*.92f,h*.15f),
+                        (color & 0x00FFFFFF) | 0x66000000, Typeface.create("serif", Typeface.NORMAL));
+            }
+        } else if (preset == 12) {
+            materialOverride = front ? (config.minutesMaterial() < 0 ? 2 : config.minutesMaterial())
+                    : (config.hoursMaterial() < 0 ? 2 : config.hoursMaterial());
+            boxText(c, pair, front ? new RectF(w*.13f,h*.46f,w*.87f,h*.81f)
+                    : new RectF(w*.13f,h*.09f,w*.87f,h*.43f), color, face);
+        } else if (preset == 5) {
             boxText(c, pair, front ? new RectF(w*.50f,h*.18f,w*.94f,h*.55f)
                     : new RectF(w*.06f,h*.10f,w*.49f,h*.55f), color, face);
         } else if (preset == 6) {

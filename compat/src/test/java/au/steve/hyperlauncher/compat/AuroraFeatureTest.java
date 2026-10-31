@@ -59,7 +59,7 @@ public class AuroraFeatureTest {
 
     @Test public void allTemplatesAndMaterialsRenderAcrossPhoneSizes() {
         AuroraConfig config = config();
-        for (int preset=0; preset<9; preset++) {
+        for (int preset=0; preset<13; preset++) {
             config.applyPreset(preset);
             for (int material=0; material<4; material++) {
                 config.prefs().edit().putInt("clockMaterial", material).putFloat("clockStretch", 1.3f)
@@ -132,6 +132,19 @@ public class AuroraFeatureTest {
         hub.setConnected(false);
     }
 
+    @Test public void countModeDoesNotRenderNotificationCardsUntilTapped() {
+        AuroraConfig config = config(); config.prefs().edit().putInt("notificationMode", 2).commit();
+        Context context = RuntimeEnvironment.getApplication(); NotificationHub hub = NotificationHub.get();
+        hub.setConnected(false); hub.upsert(notification(context,1), "Messages");
+        try (var activity = Robolectric.buildActivity(AuroraActivity.class).setup().visible()) {
+            View root = activity.get().getWindow().getDecorView();
+            assertNull(findText(root, "Private body"));
+            TextView count = findText(root, "1 notification"); assertNotNull(count); count.performClick();
+            assertNotNull(findText(root, "Private body 1"));
+        }
+        hub.setConnected(false);
+    }
+
     @Test public void mediaUsesActiveSessionMetadataAndRealTransportControls() {
         config(); Context context = RuntimeEnvironment.getApplication();
         android.media.session.MediaSession session = new android.media.session.MediaSession(context, "test");
@@ -167,7 +180,7 @@ public class AuroraFeatureTest {
             assertEquals(1, new SavedLooks(new AuroraConfig(activity.get())).list().size());
             findText(root, "Features").performClick();
             assertNotNull(findText(root, "Music controls"));
-            assertNotNull(findText(root, "Stack notifications"));
+            assertNotNull(findText(root, "Notification display"));
         }
     }
     private android.widget.EditText findEditText(View view) {

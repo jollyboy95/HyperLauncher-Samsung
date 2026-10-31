@@ -18,7 +18,7 @@ public final class SavedLooks {
             "clockMaterial", "hoursMaterial", "minutesMaterial", "outlineOverSubject", "clockColor", "autoClockColor", "clock12", "clockWidth", "clockWeight",
             "clockSpacing", "clockOpacity", "dateStyle", "showSeconds", "wallpaper", "foreground",
             "autoForeground", "videoWallpaper", "wallpaperZoom", "wallpaperFocusX", "wallpaperFocusY",
-            "dimAmount", "depthEnabled", "photoMotion", "wakeAnimation"));
+            "headline", "dimAmount", "depthEnabled", "photoMotion", "wakeAnimation"));
     private static final Set<String> INTEGER_KEYS = new HashSet<>(Arrays.asList(
             "clockPreset", "clockStyle", "clockSize", "clockY", "clockMaterial", "hoursMaterial", "minutesMaterial", "outlineOverSubject", "clockColor", "dateStyle"));
     public static final class Look {

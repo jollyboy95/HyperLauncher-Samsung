@@ -68,6 +68,10 @@ public final class AuroraConfig {
     public boolean wakeAnimation() { return prefs.getBoolean("wakeAnimation", true); }
     public String videoWallpaper() { return prefs.getString("videoWallpaper", null); }
     public boolean showMedia() { return prefs.getBoolean("showMedia", true); }
+    public int notificationMode() {
+        return prefs.getInt("notificationMode", prefs.getBoolean("notificationStack", true) ? 1 : 0);
+    }
+    public String headline() { return prefs.getString("headline", ""); }
     public boolean notificationStack() { return prefs.getBoolean("notificationStack", true); }
     public boolean statusWidgets() { return prefs.getBoolean("statusWidgets", true); }
     public int leftShortcut() { return prefs.getInt("leftShortcut", 0); }
@@ -80,8 +84,8 @@ public final class AuroraConfig {
         if (preset >= 5) {
             prefs.edit().remove("clockYRatio").remove("hoursMaterial").remove("minutesMaterial").putInt("clockPreset", preset).putInt("clockStyle", 0)
                     .putInt("clockSize", 168).putInt("clockY", 0).putFloat("clockX", 0)
-                    .putFloat("clockStretch", 1).putFloat("clockWeight", .95f)
-                    .putFloat("clockOpacity", .92f).putInt("clockColor", 0xFFFFFFFF)
+                    .putFloat("clockStretch", 1).putFloat("clockWeight", preset == 9 || preset == 12 ? .25f : preset == 11 ? .2f : .95f)
+                    .putFloat("clockOpacity", preset == 9 ? .78f : .92f).putInt("clockColor", 0xFFFFFFFF)
                     .putBoolean("autoClockColor", false).apply();
             return;
         }
@@ -111,7 +115,7 @@ public final class AuroraConfig {
 
     public void resetAll() {
         resetClock();
-        prefs.edit().remove("photoMotion").remove("wakeAnimation").remove("showMedia").remove("notificationStack")
+        prefs.edit().remove("photoMotion").remove("wakeAnimation").remove("showMedia").remove("notificationStack").remove("notificationMode")
                 .remove("statusWidgets").remove("leftShortcut").remove("rightShortcut").remove("videoWallpaper")
                 .putFloat("wallpaperZoom", 1f)
                 .putFloat("wallpaperFocusX", 0.5f)

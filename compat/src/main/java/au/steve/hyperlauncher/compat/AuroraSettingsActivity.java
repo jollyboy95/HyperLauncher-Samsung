@@ -44,7 +44,7 @@ import org.json.JSONObject;
 public final class AuroraSettingsActivity extends Activity {
     private static final String RELEASE_API = "https://api.github.com/repos/jollyboy95/HyperLauncher-Samsung/releases/latest";
     private static final String RELEASE_PAGE = "https://github.com/jollyboy95/HyperLauncher-Samsung/releases";
-    private static final String[] PRESETS = {"Depth Stack", "Horizon", "Offset", "Editorial", "Soft Stack", "Split Outline", "Poster", "Staggered", "Rotated"};
+    private static final String[] PRESETS = {"Depth Stack", "Horizon", "Offset", "Editorial", "Soft Stack", "Split Outline", "Poster", "Staggered", "Rotated", "Cinema", "Mountain", "Magazine", "Outline Cinema"};
     private static final String[] TABS = {"Clock", "Colour", "Depth", "Wallpaper", "Features", "Designs"};
     private static final int[] CLOCK_COLOURS = {0xE8F4FBFF, 0xF2FFFFFF, 0xF2F3D5B0, 0xF2F5B6C9, 0xE8C9E4FF};
     private static final String[] COLOUR_NAMES = {"Ice", "Pearl", "Champagne", "Rose", "Lilac"};
@@ -145,6 +145,8 @@ public final class AuroraSettingsActivity extends Activity {
             lp.bottomMargin = dp(10);
             chip.setOnClickListener(v -> {
                 config.applyPreset(preset);
+                for (int child = 0; child < row.getChildCount(); child++)
+                    row.getChildAt(child).setBackground(panel(child == preset ? 0xCC3A6D99 : 0x66304458, dp(18)));
                 preview.animatePreset(preset);
                 preview.reload();
             });
@@ -184,6 +186,15 @@ public final class AuroraSettingsActivity extends Activity {
     }
 
     private void clockSheet() {
+        sheet.addView(action("Magazine headline", v -> {
+            EditText input = new EditText(this); input.setSingleLine(true); input.setText(config.headline());
+            new AlertDialog.Builder(this).setTitle("Magazine headline").setView(input)
+                    .setPositiveButton("Apply", (dialog, which) -> {
+                        String title = input.getText().toString().trim();
+                        config.prefs().edit().putString("headline", title.substring(0, Math.min(24, title.length()))).apply();
+                        preview.reload();
+                    }).setNegativeButton("Cancel", null).show();
+        }));
         sheet.addView(slider("Digit height", config.clockSize() - 80, 140, v -> {
             config.prefs().edit().putInt("clockSize", 80 + v).apply();
             preview.reload();
@@ -314,8 +325,8 @@ public final class AuroraSettingsActivity extends Activity {
     }
 
     private void effectsSheet() {
-        sheet.addView(toggle("Stack notifications", config.notificationStack(), on ->
-                config.prefs().edit().putBoolean("notificationStack", on).apply()));
+        sheet.addView(choiceRow("Notification display", new String[]{"List", "Stack", "Count"},
+                config.notificationMode(), mode -> config.prefs().edit().putInt("notificationMode", mode).apply()));
         sheet.addView(toggle("Music controls", config.showMedia(), on ->
                 config.prefs().edit().putBoolean("showMedia", on).apply()));
         sheet.addView(toggle("Battery and next alarm", config.statusWidgets(), on ->
@@ -327,7 +338,7 @@ public final class AuroraSettingsActivity extends Activity {
                 config.prefs().edit().putInt("leftShortcut", i).apply()));
         sheet.addView(choiceRow("Right shortcut", shortcuts, config.rightShortcut(), i ->
                 config.prefs().edit().putInt("rightShortcut", i).apply()));
-        sheet.addView(info("Tap a notification to open it after unlock. Swipe a dismissible card sideways to clear it. Tap the count to expand the stack. Music controls use your active player after notification access is enabled."));
+        sheet.addView(info("Tap a notification to open it after unlock. Swipe a dismissible card sideways to clear it. List shows cards, Stack shows one card, and Count hides cards until expanded. Tap the count to expand. Music controls use your active player after notification access is enabled."));
         sheet.addView(toggle("Show live notifications", config.showNotifications(), c ->
                 config.prefs().edit().putBoolean("showNotifications", c).apply()));
         sheet.addView(toggle("Hide content until unlock", config.hideNotificationContent(), c ->
@@ -469,7 +480,11 @@ public final class AuroraSettingsActivity extends Activity {
             chip.setBackground(panel(i == selected ? 0xCC3A6D99 : 0x55304458, dp(14)));
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, -2);
             lp.rightMargin = dp(8);
-            chip.setOnClickListener(v -> listener.on(index));
+            chip.setOnClickListener(v -> {
+                listener.on(index);
+                for (int child = 0; child < row.getChildCount(); child++)
+                    row.getChildAt(child).setBackground(panel(child == index ? 0xCC3A6D99 : 0x55304458, dp(14)));
+            });
             row.addView(chip, lp);
         }
         scroller.addView(row);
