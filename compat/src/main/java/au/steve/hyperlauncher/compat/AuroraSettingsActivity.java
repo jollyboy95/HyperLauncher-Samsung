@@ -32,6 +32,7 @@ public final class AuroraSettingsActivity extends Activity {
     private TextView updateStatus;
     private Button downloadButton;
     private String availableApk;
+    private AuroraSceneView scenePreview;
     private TextView previewClock;
     private ImageView previewWallpaper;
     private ImageView previewForeground;
@@ -73,8 +74,21 @@ public final class AuroraSettingsActivity extends Activity {
             public void onProgressChanged(SeekBar s,int progress,boolean user){if(user){prefs.edit().putInt("clockSize",80+progress).apply();refreshPreview();}}
             public void onStartTrackingTouch(SeekBar s){} public void onStopTrackingTouch(SeekBar s){}
         });panel.addView(size);
+        addInfo("Clock vertical position");
+        SeekBar position=new SeekBar(this);position.setMax(240);
+        position.setProgress(prefs.getInt("clockY",0)+120);
+        position.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){
+            public void onProgressChanged(SeekBar s,int value,boolean user){if(user){prefs.edit().putInt("clockY",value-120).apply();refreshPreview();}}
+            public void onStartTrackingTouch(SeekBar s){}public void onStopTrackingTouch(SeekBar s){}
+        });panel.addView(position);
         addTitle("Wallpaper & depth");
-        addInfo("Choose your main wallpaper on the Aurora preview. You can optionally select a transparent PNG foreground cutout to overlap the clock. Foreground positioning is experimental.");
+        addInfo("Use a transparent PNG cutout aligned to the original wallpaper to place your subject in front of the clock. Automatic background removal is not included yet.");
+        button("Choose wallpaper").setOnClickListener(v->{
+            Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.setType("image/*");
+            i.addCategory(Intent.CATEGORY_OPENABLE);
+            i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+            startActivityForResult(i,102);
+        });
         button("Choose foreground cutout (PNG)").setOnClickListener(v->{
             Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.setType("image/png");i.addCategory(Intent.CATEGORY_OPENABLE);
             i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);startActivityForResult(i,101);
@@ -92,65 +106,13 @@ public final class AuroraSettingsActivity extends Activity {
         button("Open releases").setOnClickListener(v->startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(RELEASE_PAGE))));
         button("Back to Aurora").setOnClickListener(v->finish());
     }
-    private void createPreview() {
+    private void createPreview(){
         float d=getResources().getDisplayMetrics().density;
-        FrameLayout frame=new FrameLayout(this);
-        frame.setBackgroundColor(0xFF101D33);
-        frame.setClipChildren(true);
-        LinearLayout.LayoutParams layout=new LinearLayout.LayoutParams(-1,(int)(380*d));
-        panel.addView(frame,layout);
-        previewWallpaper=new ImageView(this);
-        previewWallpaper.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        frame.addView(previewWallpaper,new FrameLayout.LayoutParams(-1,-1));
-        View shade=new View(this);
-        shade.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,new int[]{0xB900102A,0x22000B24,0xA900071A}));
-        frame.addView(shade,new FrameLayout.LayoutParams(-1,-1));
-        LinearLayout labels=new LinearLayout(this);
-        labels.setGravity(Gravity.CENTER_HORIZONTAL);
-        labels.setOrientation(LinearLayout.VERTICAL);
-        labels.setPadding(8,(int)(38*d),8,0);
-        TextView caption=new TextView(this);
-        caption.setText("AURORA DEPTH");
-        caption.setTextSize(10);caption.setTextColor(0xFFC1D9FF);caption.setGravity(Gravity.CENTER);
-        labels.addView(caption);
-        previewClock=new TextView(this);
-        previewClock.setGravity(Gravity.CENTER);
-        previewClock.setTextColor(0xFF80B8FF);
-        previewClock.setTypeface(Typeface.create("sans-serif-light",Typeface.NORMAL));
-        labels.addView(previewClock);
-        TextView date=new TextView(this);
-        date.setText(new SimpleDateFormat("EEEE, d MMMM",Locale.getDefault()).format(new Date()));
-        date.setTextColor(Color.WHITE);date.setTextSize(14);date.setGravity(Gravity.CENTER);
-        labels.addView(date);
-        frame.addView(labels,new FrameLayout.LayoutParams(-1,-2,Gravity.TOP));
-        previewForeground=new ImageView(this);
-        previewForeground.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        FrameLayout.LayoutParams fg=new FrameLayout.LayoutParams(-1,(int)(185*d),Gravity.TOP);
-        fg.topMargin=(int)(68*d);
-        frame.addView(previewForeground,fg);
-        refreshPreview();
+        scenePreview=new AuroraSceneView(this,true);
+        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,(int)(560*d));
+        panel.addView(scenePreview,lp);
     }
-    private void refreshPreview() {
-        if(previewClock==null)return;
-        String time=new SimpleDateFormat(prefs.getBoolean("clock12",false)?"hhmm":"HHmm",Locale.getDefault()).format(new Date());
-        previewClock.setText(time.substring(0,2)+"\n"+time.substring(2));
-        // Preview is approximately two-thirds the full-screen clock size.
-        previewClock.setTextSize(prefs.getInt("clockSize",160)*0.55f);
-        previewClock.setLineSpacing(-16*getResources().getDisplayMetrics().density,0.84f);
-        previewClock.setIncludeFontPadding(false);
-        int style=prefs.getInt("clockStyle",0);
-        previewClock.setTypeface(Typeface.create(style==0?"sans-serif-condensed":style==1?"sans-serif-light":"sans-serif",style==0?Typeface.BOLD:Typeface.NORMAL));
-        if(previewWallpaper!=null){
-            String uri=prefs.getString("wallpaper",null);
-            previewWallpaper.setImageDrawable(null);
-            if(uri!=null)try{previewWallpaper.setImageURI(Uri.parse(uri));}catch(Exception ignored){}
-        }
-        if(previewForeground!=null){
-            String uri=prefs.getString("foreground",null);
-            previewForeground.setImageDrawable(null);
-            if(uri!=null)try{previewForeground.setImageURI(Uri.parse(uri));}catch(Exception ignored){}
-        }
-    }
+    private void refreshPreview(){if(scenePreview!=null)scenePreview.reload();}
     @Override protected void onResume(){super.onResume();previewHandler.removeCallbacks(previewTicker);previewHandler.post(previewTicker);}
     @Override protected void onPause(){previewHandler.removeCallbacks(previewTicker);super.onPause();}
     private void downloadUpdate() {
@@ -218,10 +180,10 @@ public final class AuroraSettingsActivity extends Activity {
     }
     @Override protected void onActivityResult(int request,int result,Intent data) {
         super.onActivityResult(request,result,data);
-        if(request==101&&result==RESULT_OK&&data!=null&&data.getData()!=null){
+        if((request==101||request==102)&&result==RESULT_OK&&data!=null&&data.getData()!=null){
             Uri u=data.getData();
             try {getContentResolver().takePersistableUriPermission(u,Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                prefs.edit().putString("foreground",u.toString()).apply();refreshPreview();Toast.makeText(this,"Cutout saved",Toast.LENGTH_SHORT).show();
+                prefs.edit().putString(request==101?"foreground":"wallpaper",u.toString()).apply();refreshPreview();Toast.makeText(this,"Image saved",Toast.LENGTH_SHORT).show();
             }catch(Exception e){Toast.makeText(this,"Unable to save cutout",Toast.LENGTH_SHORT).show();}
         }
     }
