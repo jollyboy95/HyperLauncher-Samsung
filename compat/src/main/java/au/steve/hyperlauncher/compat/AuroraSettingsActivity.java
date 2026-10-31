@@ -54,6 +54,26 @@ public final class AuroraSettingsActivity extends Activity {
         addTitle("Live preview");
         createPreview();
         addInfo("Changes appear here immediately. Your wallpaper and optional foreground cutout are shown in the preview.");
+        addTitle("Clock layout");
+        String[] layouts={"Depth Stack","Minimal Horizontal","Editorial Offset"};
+        Spinner layoutPicker=new Spinner(this);
+        layoutPicker.setAdapter(new ArrayAdapter<String>(this,android.R.layout.simple_spinner_dropdown_item,layouts));
+        layoutPicker.setSelection(prefs.getInt("clockPreset",0));
+        layoutPicker.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){
+            public void onItemSelected(android.widget.AdapterView<?> p,View v,int position,long id){prefs.edit().putInt("clockPreset",position).apply();refreshPreview();}
+            public void onNothingSelected(android.widget.AdapterView<?> p){}
+        });
+        panel.addView(layoutPicker);
+        addInfo("Drag the clock directly in the live preview to reposition it.");
+        scenePreview.setEditing(true);
+        scenePreview.setOnTouchListener(new View.OnTouchListener(){
+            float down;
+            public boolean onTouch(View v,android.view.MotionEvent e){
+                if(e.getAction()==android.view.MotionEvent.ACTION_DOWN){down=e.getY();scenePreview.startClockDrag();return true;}
+                if(e.getAction()==android.view.MotionEvent.ACTION_MOVE){scenePreview.moveClock(e.getY()-down);return true;}
+                return e.getAction()==android.view.MotionEvent.ACTION_UP;
+            }
+        });
         addTitle("Clock");
         Switch hour=new Switch(this);hour.setText("12-hour clock");hour.setTextColor(Color.WHITE);
         hour.setChecked(prefs.getBoolean("clock12",false));hour.setOnCheckedChangeListener((v,c)->{prefs.edit().putBoolean("clock12",c).apply();refreshPreview();});panel.addView(hour);
@@ -68,6 +88,18 @@ public final class AuroraSettingsActivity extends Activity {
             public void onNothingSelected(android.widget.AdapterView<?> parent){}
         });
         panel.addView(style);
+        addInfo("Clock colour");
+        String[] colours={"Ice Blue","Pearl White","Warm Champagne","Soft Rose"};
+        int[] values={0xBFD0E9FF,0xE8FFFFFF,0xDDF9D9AD,0xDDF5B6C9};
+        Spinner colourPicker=new Spinner(this);
+        colourPicker.setAdapter(new ArrayAdapter<String>(this,android.R.layout.simple_spinner_dropdown_item,colours));
+        int chosen=0;for(int i=0;i<values.length;i++)if(prefs.getInt("clockColor",values[0])==values[i])chosen=i;
+        colourPicker.setSelection(chosen);
+        colourPicker.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){
+            public void onItemSelected(android.widget.AdapterView<?> p,View v,int position,long id){prefs.edit().putInt("clockColor",values[position]).apply();refreshPreview();}
+            public void onNothingSelected(android.widget.AdapterView<?> p){}
+        });
+        panel.addView(colourPicker);
         addInfo("Clock size");
         SeekBar size=new SeekBar(this);size.setMax(120);size.setProgress(prefs.getInt("clockSize",160)-80);
         size.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){
