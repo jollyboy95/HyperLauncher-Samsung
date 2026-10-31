@@ -8,3 +8,4 @@
 *.so
 *.jks
 __pycache__/
+/app
