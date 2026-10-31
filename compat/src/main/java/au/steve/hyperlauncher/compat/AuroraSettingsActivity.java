@@ -3,6 +3,13 @@ package au.steve.hyperlauncher.compat;
 import android.app.Activity;
 import android.content.Intent;
 import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
+import android.graphics.Typeface;
+import android.view.View;
+import android.widget.FrameLayout;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 import android.os.Bundle;
 import android.widget.*;
 import android.view.Gravity;
@@ -18,6 +25,11 @@ public final class AuroraSettingsActivity extends Activity {
     private LinearLayout panel;
     private SharedPreferences prefs;
     private TextView updateStatus;
+    private TextView previewClock;
+    private ImageView previewWallpaper;
+    private ImageView previewForeground;
+    private final android.os.Handler previewHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+    private final Runnable previewTicker = new Runnable() { public void run() { refreshPreview(); previewHandler.postDelayed(this, 15000); } };
     private void addTitle(String s) { TextView v=new TextView(this);v.setText(s);v.setTextColor(0xFF9DC5FF);v.setTextSize(23);v.setPadding(0,22,0,16);panel.addView(v); }
     private void addInfo(String s) { TextView v=new TextView(this);v.setText(s);v.setTextColor(0xFFD1DFF5);v.setTextSize(14);v.setPadding(0,5,0,14);panel.addView(v); }
     private Button button(String s) { Button b=new Button(this);b.setText(s);panel.addView(b);return b; }
@@ -31,13 +43,16 @@ public final class AuroraSettingsActivity extends Activity {
         panel.setPadding(p,p,p,p);scroll.addView(panel);setContentView(scroll);
         addTitle("Aurora Depth · Settings");
         addInfo("Your Samsung fingerprint, face and PIN remain the secure unlock method.");
+        addTitle("Live preview");
+        createPreview();
+        addInfo("Changes appear here immediately. Your wallpaper and optional foreground cutout are shown in the preview.");
         addTitle("Clock");
         Switch hour=new Switch(this);hour.setText("12-hour clock");hour.setTextColor(Color.WHITE);
-        hour.setChecked(prefs.getBoolean("clock12",false));hour.setOnCheckedChangeListener((v,c)->prefs.edit().putBoolean("clock12",c).apply());panel.addView(hour);
+        hour.setChecked(prefs.getBoolean("clock12",false));hour.setOnCheckedChangeListener((v,c)->{prefs.edit().putBoolean("clock12",c).apply();refreshPreview();});panel.addView(hour);
         addInfo("Clock size");
         SeekBar size=new SeekBar(this);size.setMax(60);size.setProgress(prefs.getInt("clockSize",88)-60);
         size.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){
-            public void onProgressChanged(SeekBar s,int progress,boolean user){if(user)prefs.edit().putInt("clockSize",60+progress).apply();}
+            public void onProgressChanged(SeekBar s,int progress,boolean user){if(user){prefs.edit().putInt("clockSize",60+progress).apply();refreshPreview();}}
             public void onStartTrackingTouch(SeekBar s){} public void onStopTrackingTouch(SeekBar s){}
         });panel.addView(size);
         addTitle("Wallpaper & depth");
@@ -46,7 +61,7 @@ public final class AuroraSettingsActivity extends Activity {
             Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.setType("image/png");i.addCategory(Intent.CATEGORY_OPENABLE);
             i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);startActivityForResult(i,101);
         });
-        button("Remove foreground cutout").setOnClickListener(v->{prefs.edit().remove("foreground").apply();Toast.makeText(this,"Cutout removed",Toast.LENGTH_SHORT).show();});
+        button("Remove foreground cutout").setOnClickListener(v->{prefs.edit().remove("foreground").apply();refreshPreview();Toast.makeText(this,"Cutout removed",Toast.LENGTH_SHORT).show();});
         addTitle("Lock-screen activation");
         addInfo("Automatic display on every screen wake is not enabled. Android restricts third-party apps from launching over Samsung's secure lock screen in the background. Aurora will not claim to replace Keyguard.");
         addTitle("Software update");
@@ -56,6 +71,62 @@ public final class AuroraSettingsActivity extends Activity {
         button("Open releases").setOnClickListener(v->startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(RELEASE_PAGE))));
         button("Back to Aurora").setOnClickListener(v->finish());
     }
+    private void createPreview() {
+        float d=getResources().getDisplayMetrics().density;
+        FrameLayout frame=new FrameLayout(this);
+        frame.setBackgroundColor(0xFF101D33);
+        frame.setClipChildren(true);
+        LinearLayout.LayoutParams layout=new LinearLayout.LayoutParams(-1,(int)(380*d));
+        panel.addView(frame,layout);
+        previewWallpaper=new ImageView(this);
+        previewWallpaper.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        frame.addView(previewWallpaper,new FrameLayout.LayoutParams(-1,-1));
+        View shade=new View(this);
+        shade.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,new int[]{0xB900102A,0x22000B24,0xA900071A}));
+        frame.addView(shade,new FrameLayout.LayoutParams(-1,-1));
+        LinearLayout labels=new LinearLayout(this);
+        labels.setGravity(Gravity.CENTER_HORIZONTAL);
+        labels.setOrientation(LinearLayout.VERTICAL);
+        labels.setPadding(8,(int)(38*d),8,0);
+        TextView caption=new TextView(this);
+        caption.setText("AURORA DEPTH");
+        caption.setTextSize(10);caption.setTextColor(0xFFC1D9FF);caption.setGravity(Gravity.CENTER);
+        labels.addView(caption);
+        previewClock=new TextView(this);
+        previewClock.setGravity(Gravity.CENTER);
+        previewClock.setTextColor(0xFF80B8FF);
+        previewClock.setTypeface(Typeface.create("sans-serif-light",Typeface.NORMAL));
+        labels.addView(previewClock);
+        TextView date=new TextView(this);
+        date.setText(new SimpleDateFormat("EEEE, d MMMM",Locale.getDefault()).format(new Date()));
+        date.setTextColor(Color.WHITE);date.setTextSize(14);date.setGravity(Gravity.CENTER);
+        labels.addView(date);
+        frame.addView(labels,new FrameLayout.LayoutParams(-1,-2,Gravity.TOP));
+        previewForeground=new ImageView(this);
+        previewForeground.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        FrameLayout.LayoutParams fg=new FrameLayout.LayoutParams(-1,(int)(185*d),Gravity.TOP);
+        fg.topMargin=(int)(68*d);
+        frame.addView(previewForeground,fg);
+        refreshPreview();
+    }
+    private void refreshPreview() {
+        if(previewClock==null)return;
+        previewClock.setText(new SimpleDateFormat(prefs.getBoolean("clock12",false)?"h:mm":"HH:mm",Locale.getDefault()).format(new Date()));
+        // Preview is approximately two-thirds the full-screen clock size.
+        previewClock.setTextSize(prefs.getInt("clockSize",88)*0.65f);
+        if(previewWallpaper!=null){
+            String uri=prefs.getString("wallpaper",null);
+            previewWallpaper.setImageDrawable(null);
+            if(uri!=null)try{previewWallpaper.setImageURI(Uri.parse(uri));}catch(Exception ignored){}
+        }
+        if(previewForeground!=null){
+            String uri=prefs.getString("foreground",null);
+            previewForeground.setImageDrawable(null);
+            if(uri!=null)try{previewForeground.setImageURI(Uri.parse(uri));}catch(Exception ignored){}
+        }
+    }
+    @Override protected void onResume(){super.onResume();previewHandler.removeCallbacks(previewTicker);previewHandler.post(previewTicker);}
+    @Override protected void onPause(){previewHandler.removeCallbacks(previewTicker);super.onPause();}
     private void checkUpdates() {
         updateStatus.setText("Checking releases…");
         new Thread(()->{
@@ -83,7 +154,7 @@ public final class AuroraSettingsActivity extends Activity {
         if(request==101&&result==RESULT_OK&&data!=null&&data.getData()!=null){
             Uri u=data.getData();
             try {getContentResolver().takePersistableUriPermission(u,Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                prefs.edit().putString("foreground",u.toString()).apply();Toast.makeText(this,"Cutout saved",Toast.LENGTH_SHORT).show();
+                prefs.edit().putString("foreground",u.toString()).apply();refreshPreview();Toast.makeText(this,"Cutout saved",Toast.LENGTH_SHORT).show();
             }catch(Exception e){Toast.makeText(this,"Unable to save cutout",Toast.LENGTH_SHORT).show();}
         }
     }
