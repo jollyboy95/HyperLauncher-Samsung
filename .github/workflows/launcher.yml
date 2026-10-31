@@ -1,11 +1,14 @@
 name: Build HyperLauncher
 on:
   push:
-    branches: [main]
+    branches: [main, feature/hyperos4-integration]
     paths: ['launcher/**', 'scripts/prepare_launcher.py', '.github/workflows/launcher.yml']
   pull_request:
     paths: ['launcher/**', 'scripts/prepare_launcher.py', '.github/workflows/launcher.yml']
   workflow_dispatch:
+concurrency:
+  group: launcher-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
@@ -51,6 +54,18 @@ jobs:
       - name: Build launcher APK
         working-directory: work/launcher
         run: ./gradlew --no-daemon assembleLawnWithQuickstepGithubDebug
+      - name: Report launcher APK
+        working-directory: work/launcher
+        run: |
+          set -euo pipefail
+          APK="$(find build/outputs/apk/lawnWithQuickstepGithub/debug -maxdepth 1 -name '*.apk' -print -quit)"
+          test -n "$APK"
+          ls -l "$APK"
+          sha256sum "$APK"
+          echo "### HyperLauncher debug APK" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- File: \`$(basename "$APK")\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- SHA-256: \`$(sha256sum "$APK" | cut -d' ' -f1)\`" >> "$GITHUB_STEP_SUMMARY"
       - name: Upload launcher APK
         uses: actions/upload-artifact@v4
         with:
