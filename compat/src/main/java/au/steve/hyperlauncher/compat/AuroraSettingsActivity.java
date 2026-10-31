@@ -103,14 +103,20 @@ public final class AuroraSettingsActivity extends Activity {
         addInfo("Clock size");
         SeekBar size=new SeekBar(this);size.setMax(120);size.setProgress(prefs.getInt("clockSize",160)-80);
         size.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){
-            public void onProgressChanged(SeekBar s,int progress,boolean user){if(user){prefs.edit().putInt("clockSize",80+progress).apply();refreshPreview();}}
+            public void onProgressChanged(SeekBar s,int progress,boolean user){if(user){prefs.edit().putInt("clockSize",80+progress).apply();prefs.edit().putInt("clockY",scenePreview.safeClockY(prefs.getInt("clockY",0))).apply();refreshPreview();}}
             public void onStartTrackingTouch(SeekBar s){} public void onStopTrackingTouch(SeekBar s){}
         });panel.addView(size);
+        button("Reset clock layout").setOnClickListener(v->{
+            prefs.edit().putInt("clockPreset",0).putInt("clockStyle",0)
+                .putInt("clockSize",145).putInt("clockY",0).putInt("clockColor",0xBFD0E9FF).apply();
+            refreshPreview();
+            Toast.makeText(this,"Clock layout reset. Reopen Settings to refresh controls.",Toast.LENGTH_LONG).show();
+        });
         addInfo("Clock vertical position");
         SeekBar position=new SeekBar(this);position.setMax(240);
         position.setProgress(prefs.getInt("clockY",0)+120);
         position.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){
-            public void onProgressChanged(SeekBar s,int value,boolean user){if(user){prefs.edit().putInt("clockY",value-120).apply();refreshPreview();}}
+            public void onProgressChanged(SeekBar s,int value,boolean user){if(user){prefs.edit().putInt("clockY",scenePreview.safeClockY(value-120)).apply();refreshPreview();}}
             public void onStartTrackingTouch(SeekBar s){}public void onStopTrackingTouch(SeekBar s){}
         });panel.addView(position);
         addTitle("Wallpaper & depth");
