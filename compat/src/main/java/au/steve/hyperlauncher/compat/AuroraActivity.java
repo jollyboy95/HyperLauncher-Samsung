@@ -105,7 +105,6 @@ public final class AuroraActivity extends Activity {
 
         root.setOnApplyWindowInsetsListener((v, insets) -> {
             int bottom = insets.getSystemWindowInsetBottom();
-            navInset = bottom;
             fl.bottomMargin = dp(28) + bottom;
             cp.bottomMargin = dp(28) + bottom;
             np.bottomMargin = dp(96) + bottom;
