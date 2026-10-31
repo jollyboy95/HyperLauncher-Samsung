@@ -59,31 +59,31 @@ public final class AuroraActivity extends Activity {
         int pad = (int)(24 * getResources().getDisplayMetrics().density);
         content.setPadding(pad, (int)(92 * getResources().getDisplayMetrics().density), pad, pad);
         TextView heading = new TextView(this);
-        heading.setText(new SimpleDateFormat("EEEE", Locale.getDefault()).format(new Date()).toUpperCase(Locale.getDefault()) + "  /  AURORA");
+        heading.setText(new SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()).format(new Date()).toUpperCase(Locale.getDefault()));
         heading.setTextColor(0xFFC1D9FF);
-        heading.setTextSize(11);
-        heading.setLetterSpacing(0.24f);
+        heading.setTextSize(14);
+        heading.setLetterSpacing(0.10f);
         heading.setGravity(Gravity.CENTER);
         content.addView(heading);
         clock = new TextView(this);
         clock.setTextColor(0xFFB2D8FF);
         clock.setLetterSpacing(-0.09f);
         clock.setIncludeFontPadding(false);
-        clock.setTypeface(Typeface.create("sans-serif-light", Typeface.NORMAL));
-        clock.setTextSize(prefs.getInt("clockSize", 88));
+        clock.setTypeface(Typeface.create("sans-serif-condensed", Typeface.BOLD));
+        clock.setTextSize(prefs.getInt("clockSize", 112));
         clock.setGravity(Gravity.CENTER);
         content.addView(clock);
         TextView date = new TextView(this);
-        date.setText(new SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()).format(new Date()));
+        date.setText("");
         date.setTextColor(Color.WHITE);
-        date.setTextSize(16);
+        date.setTextSize(0);
         date.setLetterSpacing(0.07f);
         date.setGravity(Gravity.CENTER);
         content.addView(date);
         foreground = new ImageView(this);
         foreground.setScaleType(ImageView.ScaleType.FIT_CENTER);
         FrameLayout.LayoutParams fgParams = new FrameLayout.LayoutParams(-1, (int)(260 * getResources().getDisplayMetrics().density), Gravity.TOP);
-        fgParams.topMargin = (int)(135 * getResources().getDisplayMetrics().density);
+        fgParams.topMargin = (int)(110 * getResources().getDisplayMetrics().density);
         String cutout = prefs.getString("foreground", null);
         if (cutout != null) try { foreground.setImageURI(Uri.parse(cutout)); } catch (Exception ignored) {}
         // Overlay above clock; foreground must be a transparent PNG to create a depth illusion.
@@ -103,7 +103,7 @@ public final class AuroraActivity extends Activity {
         hint.setGravity(Gravity.CENTER);
         content.addView(hint);
         TextView note = new TextView(this);
-        note.setText("Aurora visual preview · Samsung secure unlock");
+        note.setText("");
         note.setTextColor(0x99C7DDF5);
         note.setTextSize(10);
         note.setGravity(Gravity.CENTER);
@@ -121,12 +121,13 @@ public final class AuroraActivity extends Activity {
         gearPosition.topMargin=(int)(32*getResources().getDisplayMetrics().density);
         gearPosition.rightMargin=pad/2;
         TextView gear=new TextView(this);
-        gear.setText("⚙");
+        gear.setText("⋯");
         gear.setTextColor(0xFFE0EDFF);
         gear.setTextSize(23);
         gear.setGravity(Gravity.CENTER);
         gear.setContentDescription("Aurora settings");
         gear.setOnClickListener(v->startActivity(new Intent(this,AuroraSettingsActivity.class)));
+        gear.setAlpha(0.30f);
         root.addView(gear,gearPosition);
         FrameLayout.LayoutParams photoPosition = new FrameLayout.LayoutParams((int)(44*getResources().getDisplayMetrics().density),(int)(44*getResources().getDisplayMetrics().density),Gravity.TOP|Gravity.LEFT);
         photoPosition.topMargin=gearPosition.topMargin;
@@ -143,6 +144,7 @@ public final class AuroraActivity extends Activity {
             i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
             startActivityForResult(i,PICK_PHOTO);
         });
+        photo.setVisibility(View.GONE);
         root.addView(photo,photoPosition);
         root.addView(content, new FrameLayout.LayoutParams(-1, -1));
         root.addView(foreground, fgParams);
@@ -161,7 +163,7 @@ public final class AuroraActivity extends Activity {
     }
     @Override protected void onResume() {
         super.onResume();
-        if (clock != null) clock.setTextSize(prefs.getInt("clockSize",88));
+        if (clock != null) clock.setTextSize(prefs.getInt("clockSize",112));
         if (foreground != null) {
             String u=prefs.getString("foreground",null);
             foreground.setImageDrawable(null);
