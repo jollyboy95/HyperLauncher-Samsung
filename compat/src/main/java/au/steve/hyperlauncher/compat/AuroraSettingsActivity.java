@@ -46,7 +46,11 @@ import org.json.JSONObject;
 public final class AuroraSettingsActivity extends Activity {
     private static final String RELEASE_API = "https://api.github.com/repos/jollyboy95/HyperLauncher-Samsung/releases/latest";
     private static final String RELEASE_PAGE = "https://github.com/jollyboy95/HyperLauncher-Samsung/releases";
-    private static final String[] PRESETS = {"Depth Stack", "Horizon", "Offset", "Editorial", "Soft Stack", "Split Outline", "Poster", "Staggered", "Rotated", "Cinema", "Mountain", "Magazine", "Outline Cinema"};
+    private static final String[] PRESETS = {
+            "Depth Stack", "Horizon", "Offset", "Editorial", "Soft Stack", "Split Outline",
+            "Poster", "Staggered", "Rotated", "Cinema", "Mountain", "Magazine", "Outline Cinema",
+            "HyperOS 4 Glass", "Movie: Up In Air", "Movie: Neon Dog", "Movie: Block", "Classic Left", "Ultra-Tall Art"
+    };
     private static final String[] TABS = {"Clock", "Colour", "Depth", "Wallpaper", "Features", "Designs"};
     private static final int[] CLOCK_COLOURS = {0xE8F4FBFF, 0xF2FFFFFF, 0xF2F3D5B0, 0xF2F5B6C9, 0xE8C9E4FF};
     private static final String[] COLOUR_NAMES = {"Ice", "Pearl", "Champagne", "Rose", "Lilac"};
@@ -114,10 +118,20 @@ public final class AuroraSettingsActivity extends Activity {
         wallpaperHost.setClipToOutline(true);
         wallpaperHost.setOutlineProvider(new android.view.ViewOutlineProvider() {
             @Override public void getOutline(View view, android.graphics.Outline outline) {
-                outline.setRoundRect(0,0,view.getWidth(),view.getHeight(),dp(24));
+                outline.setRoundRect(0,0,view.getWidth(),view.getHeight(),dp(26));
             }
         });
         root.addView(wallpaperHost, pp);
+
+        View holePunch = new View(this);
+        GradientDrawable hole = new GradientDrawable();
+        hole.setShape(GradientDrawable.OVAL);
+        hole.setColor(0xFF000000);
+        hole.setStroke(dp(1), 0x33FFFFFF);
+        holePunch.setBackground(hole);
+        FrameLayout.LayoutParams hp = new FrameLayout.LayoutParams(dp(11), dp(11), Gravity.TOP | Gravity.CENTER_HORIZONTAL);
+        hp.topMargin = dp(72);
+        root.addView(holePunch, hp);
 
         LinearLayout chrome = new LinearLayout(this);
         chrome.setOrientation(LinearLayout.VERTICAL);
@@ -135,15 +149,16 @@ public final class AuroraSettingsActivity extends Activity {
         chrome.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1f));
         root.addView(chrome);
         LinearLayout toolbar = new LinearLayout(this); toolbar.setGravity(Gravity.CENTER_VERTICAL);
-        toolbar.setPadding(dp(16),dp(6),dp(16),dp(6));
-        TextView cancel = label("Cancel",14,0xCCFFFFFF,false); cancel.setGravity(Gravity.CENTER);
+        toolbar.setPadding(dp(16),dp(8),dp(16),dp(8));
+        TextView cancel = label("Cancel",14,Color.WHITE,true); cancel.setGravity(Gravity.CENTER);
+        cancel.setBackground(panel(0x33FFFFFF, dp(18)));
         cancel.setContentDescription("Cancel lock-screen changes");cancel.setOnClickListener(v -> finish());
-        toolbar.addView(cancel,new LinearLayout.LayoutParams(dp(64),dp(44)));
-        TextView title = label("Lock screen",17,Color.WHITE,true);title.setGravity(Gravity.CENTER);
-        toolbar.addView(title,new LinearLayout.LayoutParams(0,dp(44),1));
-        TextView apply = label("Apply",14,0xFF0B1724,true);apply.setGravity(Gravity.CENTER);
-        apply.setBackground(panel(0xFFD4E8FF,dp(22)));apply.setContentDescription("Apply lock-screen changes");
-        apply.setOnClickListener(v -> applyAndFinish());toolbar.addView(apply,new LinearLayout.LayoutParams(dp(72),dp(44)));
+        toolbar.addView(cancel,new LinearLayout.LayoutParams(dp(72),dp(38)));
+        TextView title = label("HyperOS 4 Lock screen",16,Color.WHITE,true);title.setGravity(Gravity.CENTER);
+        toolbar.addView(title,new LinearLayout.LayoutParams(0,dp(38),1));
+        TextView apply = label("Apply",14,Color.WHITE,true);apply.setGravity(Gravity.CENTER);
+        apply.setBackground(panel(0xFF007AFF,dp(18)));apply.setContentDescription("Apply lock-screen changes");
+        apply.setOnClickListener(v -> applyAndFinish());toolbar.addView(apply,new LinearLayout.LayoutParams(dp(72),dp(38)));
         root.addView(toolbar,new FrameLayout.LayoutParams(-1,dp(56),Gravity.TOP));
         setContentView(root);
         showTab(0);
@@ -212,6 +227,26 @@ public final class AuroraSettingsActivity extends Activity {
     }
 
     private void clockSheet() {
+        sheet.addView(action("Custom signature (个性签名)", v -> {
+            EditText input = new EditText(this); input.setSingleLine(true); input.setText(config.signature());
+            new AlertDialog.Builder(this).setTitle("Signature / 个性签名").setView(input)
+                    .setPositiveButton("Apply", (dialog, which) -> {
+                        String sig = input.getText().toString().trim();
+                        config.prefs().edit().putString("signature", sig).putBoolean("showSignature", true).apply();
+                        preview.reload();
+                    }).setNegativeButton("Cancel", null).show();
+        }));
+        if (config.clockPreset() == 14) {
+            sheet.addView(action("Movie title (UP IN THE AIR)", v -> {
+                EditText input = new EditText(this); input.setText(config.movieTitle());
+                new AlertDialog.Builder(this).setTitle("Movie title").setView(input)
+                        .setPositiveButton("Apply", (dialog, which) -> {
+                            String title = input.getText().toString().trim();
+                            config.prefs().edit().putString("movieTitle", title).apply();
+                            preview.reload();
+                        }).setNegativeButton("Cancel", null).show();
+            }));
+        }
         if (config.clockPreset() == 11) sheet.addView(action("Magazine headline", v -> {
             EditText input = new EditText(this); input.setSingleLine(true); input.setText(config.headline());
             new AlertDialog.Builder(this).setTitle("Magazine headline").setView(input)
@@ -263,14 +298,14 @@ public final class AuroraSettingsActivity extends Activity {
     }
 
     private void colourSheet() {
-        String[] materials = {"Match clock", "Filled", "Glass", "Outline", "Gradient"};
+        String[] materials = {"Match clock", "Filled", "Glass", "Outline", "Gradient", "Neon Wireframe"};
         sheet.addView(choiceRow("Hours", materials, config.hoursMaterial() + 1, i -> {
             config.prefs().edit().putInt("hoursMaterial", i - 1).apply(); preview.reload();
         }));
         sheet.addView(choiceRow("Minutes", materials, config.minutesMaterial() + 1, i -> {
             config.prefs().edit().putInt("minutesMaterial", i - 1).apply(); preview.reload();
         }));
-        sheet.addView(choiceRow("Clock material", new String[]{"Translucent", "Glass", "Outline", "Gradient"},
+        sheet.addView(choiceRow("Clock material", new String[]{"Translucent", "Glass", "Outline", "Gradient", "Neon Wireframe"},
                 config.clockMaterial(), i -> {
                     config.prefs().edit().putInt("clockMaterial", i).apply(); preview.reload();
                 }));
@@ -359,8 +394,7 @@ public final class AuroraSettingsActivity extends Activity {
         sheet.addView(info(AuroraWakeService.enabledInSystem(this)
                 ? "Automatic wake access is enabled. " + config.prefs().getString("autoWakeStatus", "Lock the phone, then wake it to test.")
                 : "One-time setup: enable Aurora automatic lock screen in Accessibility. Screen contents are not read. Tap Apply after setup."));
-        sheet.addView(choiceRow("Notification display", new String[]{"List", "Stack", "Count"},
-                config.notificationMode(), mode -> config.prefs().edit().putInt("notificationMode", mode).apply()));
+        sheet.addView(notificationDisplayCards());
         sheet.addView(toggle("Music controls", config.showMedia(), on ->
                 config.prefs().edit().putBoolean("showMedia", on).apply()));
         sheet.addView(toggle("Battery and next alarm", config.statusWidgets(), on ->
@@ -513,6 +547,84 @@ public final class AuroraSettingsActivity extends Activity {
         view.setPadding(0, dp(6), 0, dp(6));
         view.setOnCheckedChangeListener((v, c) -> listener.on(c));
         return view;
+    }
+
+    private View notificationDisplayCards() {
+        LinearLayout container = new LinearLayout(this);
+        container.setOrientation(LinearLayout.VERTICAL);
+        container.setPadding(0, dp(4), 0, dp(10));
+
+        TextView heading = label("Notification display (锁屏通知样式)", 12, 0xFFD5E6F8, false);
+        heading.setPadding(0, 0, 0, dp(8));
+        container.addView(heading);
+
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        String[] titles = {"List", "Stack", "Count"};
+        int current = config.notificationMode();
+
+        for (int i = 0; i < 3; i++) {
+            final int mode = i;
+            LinearLayout card = new LinearLayout(this);
+            card.setOrientation(LinearLayout.VERTICAL);
+            card.setGravity(Gravity.CENTER);
+            card.setPadding(dp(6), dp(10), dp(6), dp(10));
+            boolean selected = (current == mode);
+
+            GradientDrawable bg = new GradientDrawable();
+            bg.setColor(selected ? 0x44007AFF : 0x22FFFFFF);
+            bg.setCornerRadius(dp(16));
+            bg.setStroke(dp(selected ? 2 : 1), selected ? 0xFF007AFF : 0x33FFFFFF);
+            card.setBackground(bg);
+
+            FrameLayout phone = new FrameLayout(this);
+            phone.setBackground(panel(0x66182838, dp(8)));
+
+            LinearLayout glyph = new LinearLayout(this);
+            glyph.setOrientation(LinearLayout.VERTICAL);
+            glyph.setGravity(Gravity.CENTER);
+
+            if (mode == 0) {
+                for (int b = 0; b < 3; b++) {
+                    View bar = new View(this);
+                    bar.setBackground(panel(0xCCFFFFFF, dp(2)));
+                    LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(dp(26), dp(4));
+                    bp.bottomMargin = dp(3);
+                    glyph.addView(bar, bp);
+                }
+            } else if (mode == 1) {
+                View bar = new View(this);
+                bar.setBackground(panel(0xFFFFFFFF, dp(3)));
+                glyph.addView(bar, new LinearLayout.LayoutParams(dp(26), dp(8)));
+                View lip = new View(this);
+                lip.setBackground(panel(0x66FFFFFF, dp(2)));
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(20), dp(3));
+                lp.topMargin = dp(2);
+                glyph.addView(lip, lp);
+            } else {
+                View pill = new View(this);
+                pill.setBackground(panel(0xFFFFFFFF, dp(3)));
+                glyph.addView(pill, new LinearLayout.LayoutParams(dp(14), dp(5)));
+            }
+
+            phone.addView(glyph, new FrameLayout.LayoutParams(-2, -2, Gravity.CENTER));
+            card.addView(phone, new LinearLayout.LayoutParams(dp(44), dp(54)));
+
+            TextView labelView = label(titles[mode], 12, selected ? 0xFF64B5F6 : 0xCCFFFFFF, true);
+            labelView.setPadding(0, dp(6), 0, 0);
+            card.addView(labelView);
+
+            card.setOnClickListener(v -> {
+                config.prefs().edit().putInt("notificationMode", mode).apply();
+                showTab(tab);
+            });
+
+            LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(0, -2, 1f);
+            if (i > 0) cp.leftMargin = dp(8);
+            row.addView(card, cp);
+        }
+        container.addView(row);
+        return container;
     }
 
     private LinearLayout choiceRow(String title, String[] names, int selected, ChoiceListener listener) {

@@ -180,15 +180,15 @@ public class AuroraActivity extends Activity {
     private TextView shortcut(String symbol) {
         TextView view = new TextView(this);
         view.setText(symbol);
-        view.setTextSize(24);
+        view.setTextSize(22);
         view.setTextColor(Color.WHITE);
         view.setGravity(Gravity.CENTER);
         GradientDrawable glass = new GradientDrawable();
-        glass.setColor(0x66243344);
+        glass.setColor(0x38FFFFFF);
         glass.setCornerRadius(dp(29));
-        glass.setStroke(dp(1), 0x73FFFFFF);
+        glass.setStroke(dp(1), 0x66FFFFFF);
         view.setBackground(glass);
-        view.setElevation(dp(8));
+        view.setElevation(dp(6));
         return view;
     }
 
@@ -246,6 +246,15 @@ public class AuroraActivity extends Activity {
                 ? items.size() + (items.size()==1?" notification":" notifications") + "  ·  " + (notificationsExpanded?"Collapse":"Expand")
                 : "Notifications",12,0xDBE8F0FB,true);
         count.setPadding(dp(10),0,dp(8),0);count.setMinHeight(dp(48));count.setGravity(Gravity.CENTER_VERTICAL);
+        if (mode == NotificationDisplay.COUNT && !notificationsExpanded) {
+            GradientDrawable pill = new GradientDrawable();
+            pill.setColor(0x38FFFFFF);
+            pill.setCornerRadius(dp(20));
+            pill.setStroke(dp(1), 0x66FFFFFF);
+            count.setBackground(pill);
+            count.setGravity(Gravity.CENTER);
+            count.setPadding(dp(16), 0, dp(16), 0);
+        }
         if(NotificationDisplay.showCount(mode,items.size())) count.setOnClickListener(v->{
             notificationsExpanded=!notificationsExpanded;renderNotices(NotificationHub.get().snapshot());
             if(config.motionEnabled()&&android.animation.ValueAnimator.areAnimatorsEnabled()){

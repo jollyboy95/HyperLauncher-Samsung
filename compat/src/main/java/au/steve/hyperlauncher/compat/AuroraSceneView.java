@@ -273,6 +273,21 @@ public final class AuroraSceneView extends View {
         } else if (material == 2) {
             paint.setStyle(Paint.Style.STROKE);
             paint.setStrokeWidth(Math.max(.8f, size * .005f));
+        } else if (material == 4) {
+            // Neon / Double-line outline
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setStrokeWidth(Math.max(2.5f, size * 0.018f));
+            paint.setColor((color & 0x00FFFFFF) | 0x38000000);
+            c.drawText(s, x, baseline, paint);
+
+            paint.setStrokeWidth(Math.max(1.3f, size * 0.009f));
+            paint.setColor(color);
+            c.drawText(s, x, baseline, paint);
+
+            paint.setStrokeWidth(Math.max(0.6f, size * 0.003f));
+            paint.setColor((color & 0x00FFFFFF) | 0x99FFFFFF);
+            c.drawText(s, x, baseline, paint);
+            return;
         }
         c.drawText(s, x, baseline, paint);
         if (material == 1) {
@@ -377,7 +392,7 @@ public final class AuroraSceneView extends View {
         c.restoreToCount(clockLayer);
         if (config.clockPreset() >= 5) {
             if (config.outlineOverSubject()) drawPoster(c, digits, color, true, width, height);
-            if (config.dateStyle() != 3) {
+            if (config.dateStyle() != 3 && config.clockPreset() < 13) {
                 if (config.clockPreset() == 6) {
                     String day = new SimpleDateFormat("EEEE", Locale.getDefault()).format(now).toUpperCase(Locale.getDefault());
                     for (int i = 0; i < day.length(); i++) text(c, day.substring(i, i + 1), width * .92f,
@@ -455,11 +470,205 @@ public final class AuroraSceneView extends View {
             float top = front ? .45f : .18f;
             boxText(c, pair.substring(0,1), new RectF(w*.08f,h*top,w*.48f,h*(top+.23f)), color, face);
             boxText(c, pair.substring(1), new RectF(w*.52f,h*(top+.08f),w*.92f,h*(top+.31f)), color, face);
-        } else {
+        } else if (preset == 8) {
             c.translate(w*.40f, h*.10f);
             c.rotate(90);
             boxText(c, pair, front ? new RectF(h*.23f,0,h*.45f,w*.32f)
                     : new RectF(0,0,h*.22f,w*.32f), color, face);
+        } else if (preset == 13) {
+            // HyperOS 4 Glass Frame with custom signature
+            float left = w * 0.08f;
+            float right = w * 0.92f;
+            float top = h * 0.125f;
+            float bottom = h * 0.395f;
+            RectF frame = new RectF(left, top, right, bottom);
+            float corner = 28f * getResources().getDisplayMetrics().density;
+            if (!front) {
+                paint.reset();
+                paint.setAntiAlias(true);
+                paint.setShader(new LinearGradient(left, top, right, bottom,
+                        new int[]{0x33FFFFFF, 0x14FFFFFF, 0x22FFFFFF},
+                        new float[]{0f, 0.5f, 1f}, Shader.TileMode.CLAMP));
+                c.drawRoundRect(frame, corner, corner, paint);
+                paint.setShader(null);
+
+                paint.setStyle(Paint.Style.STROKE);
+                paint.setStrokeWidth(Math.max(1.5f, w * 0.0035f));
+                paint.setColor(0x55FFFFFF);
+                c.drawRoundRect(frame, corner, corner, paint);
+                paint.setStyle(Paint.Style.FILL);
+
+                if (config.dateStyle() != 3) {
+                    Typeface dateFace = Typeface.create("sans-serif-medium", Typeface.NORMAL);
+                    String dateStr = new SimpleDateFormat("EEE, d MMMM", Locale.getDefault()).format(new Date()).toUpperCase(Locale.getDefault());
+                    text(c, dateStr, w * 0.5f, top + (bottom - top) * 0.22f, h * 0.015f, 0xDDEEFAFF, dateFace, true, 0.10f);
+                }
+
+                materialOverride = 1; // Glass material
+                Typeface clockTypeface = Typeface.create(Typeface.create("sans-serif", Typeface.NORMAL), 380, false);
+                boxText(c, digits.substring(0, 2) + ":" + digits.substring(2),
+                        new RectF(w * 0.14f, top + (bottom - top) * 0.26f, w * 0.86f, top + (bottom - top) * 0.76f),
+                        color, clockTypeface);
+                materialOverride = -1;
+
+                if (config.showSignature()) {
+                    String sig = config.signature();
+                    if (sig != null && !sig.trim().isEmpty()) {
+                        Typeface sigFace = Typeface.create("sans-serif-light", Typeface.NORMAL);
+                        text(c, "✦  " + sig.trim() + "  ✦", w * 0.5f, top + (bottom - top) * 0.90f, h * 0.013f, 0xBBEDF5FF, sigFace, true, 0.08f);
+                    }
+                }
+            } else if (config.outlineOverSubject()) {
+                paint.reset();
+                paint.setAntiAlias(true);
+                paint.setStyle(Paint.Style.STROKE);
+                paint.setStrokeWidth(Math.max(1.8f, w * 0.004f));
+                paint.setColor(0x77FFFFFF);
+                c.drawRoundRect(frame, corner, corner, paint);
+                paint.setStyle(Paint.Style.FILL);
+            }
+        } else if (preset == 14) {
+            // Movie: Up In The Air (top bold title + bottom right movie time badge)
+            if (!front) {
+                String title = config.movieTitle();
+                if (title == null || title.trim().isEmpty()) title = "UP IN\nTHE AIR";
+                String[] lines = title.split("\n");
+                Typeface movieFace = Typeface.create(Typeface.create("sans-serif-condensed", Typeface.NORMAL), 900, false);
+                float startY = h * 0.10f;
+                float lineStep = h * 0.075f;
+                for (int i = 0; i < lines.length && i < 3; i++) {
+                    String line = lines[i].trim().toUpperCase(Locale.getDefault());
+                    if (!line.isEmpty()) {
+                        boxText(c, line, new RectF(w * 0.08f, startY + i * lineStep, w * 0.65f, startY + (i + 0.92f) * lineStep), 0xEEFFFFFF, movieFace);
+                    }
+                }
+            } else {
+                Date now = new Date();
+                String dateStr = new SimpleDateFormat("d.M", Locale.getDefault()).format(now);
+                String timeStr = digits.substring(0, 2) + ":" + digits.substring(2);
+                String dayStr = new SimpleDateFormat("EEE", Locale.getDefault()).format(now).toUpperCase(Locale.getDefault());
+
+                Typeface badgeFace = Typeface.create("sans-serif-condensed", Typeface.BOLD);
+                float rx = w * 0.78f;
+                text(c, dateStr, rx, h * 0.725f, h * 0.022f, 0xCCFFFFFF, badgeFace, true, 0.06f);
+                int timeColor = (color & 0x00FFFFFF) == 0x00FFFFFF ? 0xFFFF453A : color;
+                text(c, timeStr, rx, h * 0.775f, h * 0.046f, timeColor, badgeFace, true, -0.04f);
+                text(c, dayStr, rx, h * 0.812f, h * 0.020f, 0xCCFFFFFF, badgeFace, true, 0.14f);
+            }
+        } else if (preset == 15) {
+            // Movie: Neon Dog / Double Outline with vertical date capsule pill
+            materialOverride = 4; // Neon double outline
+            Typeface neonFace = Typeface.create(Typeface.create("sans-serif-condensed", Typeface.NORMAL), 800, false);
+            boxText(c, pair, front ? new RectF(w * 0.10f, h * 0.44f, w * 0.90f, h * 0.79f)
+                    : new RectF(w * 0.10f, h * 0.09f, w * 0.90f, h * 0.44f), color, neonFace);
+            materialOverride = -1;
+
+            if (front) {
+                Date now = new Date();
+                String dayStr = new SimpleDateFormat("EEE", Locale.getDefault()).format(now).toUpperCase(Locale.getDefault());
+                String dateStr = new SimpleDateFormat("d/M", Locale.getDefault()).format(now);
+
+                float pl = w * 0.78f, pt = h * 0.075f, pr = w * 0.92f, pb = h * 0.170f;
+                RectF pill = new RectF(pl, pt, pr, pb);
+                float radius = (pr - pl) * 0.5f;
+
+                paint.reset();
+                paint.setAntiAlias(true);
+                paint.setColor(0x55000000);
+                c.drawRoundRect(pill, radius, radius, paint);
+                paint.setStyle(Paint.Style.STROKE);
+                paint.setStrokeWidth(Math.max(1.2f, w * 0.003f));
+                paint.setColor(0x66FFFFFF);
+                c.drawRoundRect(pill, radius, radius, paint);
+                paint.setStyle(Paint.Style.FILL);
+
+                Typeface capFace = Typeface.create("sans-serif-medium", Typeface.NORMAL);
+                text(c, dateStr, (pl + pr) * 0.5f, pt + (pb - pt) * 0.44f, h * 0.016f, 0xFFFFFFFF, capFace, true, 0.04f);
+                text(c, dayStr, (pl + pr) * 0.5f, pt + (pb - pt) * 0.82f, h * 0.015f, 0xCCFFFFFF, capFace, true, 0.08f);
+            }
+        } else if (preset == 16) {
+            // Movie: Left Cyan Block Poster (snowboarder)
+            int blockColor = (color & 0x00FFFFFF) == 0x00FFFFFF ? 0xFF00E5FF : color;
+            Typeface blockFace = Typeface.create(Typeface.create("sans-serif-condensed", Typeface.NORMAL), 900, false);
+            if (!front) {
+                Date now = new Date();
+                String dayStr = new SimpleDateFormat("EEE", Locale.getDefault()).format(now).toUpperCase(Locale.getDefault());
+                String dateStr = new SimpleDateFormat("d/M", Locale.getDefault()).format(now);
+
+                boxText(c, digits, new RectF(w * 0.08f, h * 0.11f, w * 0.48f, h * 0.24f), blockColor, blockFace);
+                boxText(c, dayStr, new RectF(w * 0.08f, h * 0.245f, w * 0.48f, h * 0.315f), blockColor, blockFace);
+                boxText(c, dateStr, new RectF(w * 0.08f, h * 0.320f, w * 0.48f, h * 0.380f), blockColor, blockFace);
+            } else if (config.outlineOverSubject()) {
+                materialOverride = 2; // Outline
+                Date now = new Date();
+                String dayStr = new SimpleDateFormat("EEE", Locale.getDefault()).format(now).toUpperCase(Locale.getDefault());
+                String dateStr = new SimpleDateFormat("d/M", Locale.getDefault()).format(now);
+
+                boxText(c, digits, new RectF(w * 0.08f, h * 0.11f, w * 0.48f, h * 0.24f), blockColor, blockFace);
+                boxText(c, dayStr, new RectF(w * 0.08f, h * 0.245f, w * 0.48f, h * 0.315f), blockColor, blockFace);
+                boxText(c, dateStr, new RectF(w * 0.08f, h * 0.320f, w * 0.48f, h * 0.380f), blockColor, blockFace);
+                materialOverride = -1;
+            }
+        } else if (preset == 17) {
+            // Classic Left (clean modern digits on left + date & signature)
+            if (!front) {
+                Date now = new Date();
+                String dateStr = new SimpleDateFormat("EEE, d MMM", Locale.getDefault()).format(now).toUpperCase(Locale.getDefault());
+                Typeface cleanFace = Typeface.create(Typeface.create("sans-serif", Typeface.NORMAL), 700, false);
+                Typeface dateFace = Typeface.create("sans-serif-medium", Typeface.NORMAL);
+
+                text(c, dateStr, w * 0.08f, h * 0.22f, h * 0.016f, 0xDDEEFF, dateFace, false, 0.10f);
+
+                String timeStr = digits.substring(0, 2) + ":" + digits.substring(2);
+                boxText(c, timeStr, new RectF(w * 0.07f, h * 0.24f, w * 0.62f, h * 0.36f), color, cleanFace);
+
+                if (config.showSignature()) {
+                    String sig = config.signature();
+                    if (sig != null && !sig.trim().isEmpty()) {
+                        Typeface sigFace = Typeface.create("sans-serif-light", Typeface.NORMAL);
+                        text(c, sig.trim(), w * 0.08f, h * 0.395f, h * 0.015f, 0xCCFFFFFF, sigFace, false, 0.04f);
+                    }
+                }
+            } else if (config.outlineOverSubject()) {
+                materialOverride = 2;
+                Typeface cleanFace = Typeface.create(Typeface.create("sans-serif", Typeface.NORMAL), 700, false);
+                String timeStr = digits.substring(0, 2) + ":" + digits.substring(2);
+                boxText(c, timeStr, new RectF(w * 0.07f, h * 0.24f, w * 0.62f, h * 0.36f), color, cleanFace);
+                materialOverride = -1;
+            }
+        } else if (preset == 18) {
+            // Ultra-Tall Art (4 stretched digits spanning screen with date pill)
+            Typeface tallFace = Typeface.create(Typeface.create("sans-serif-condensed", Typeface.NORMAL), 200, false);
+            float digitW = w * 0.21f;
+            float topY = h * 0.08f;
+            float botY = h * 0.72f;
+
+            for (int i = 0; i < 4; i++) {
+                String digit = digits.substring(i, i + 1);
+                float dx = w * 0.06f + i * (digitW + w * 0.015f);
+                boxText(c, digit, new RectF(dx, topY, dx + digitW, botY), color, tallFace);
+            }
+
+            if (front) {
+                Date now = new Date();
+                String dateStr = new SimpleDateFormat("d/M", Locale.getDefault()).format(now);
+                float pl = w * 0.08f, pt = h * 0.76f, pr = w * 0.26f, pb = h * 0.805f;
+                RectF pill = new RectF(pl, pt, pr, pb);
+                float rad = (pb - pt) * 0.5f;
+
+                paint.reset();
+                paint.setAntiAlias(true);
+                paint.setColor(0x55000000);
+                c.drawRoundRect(pill, rad, rad, paint);
+                paint.setStyle(Paint.Style.STROKE);
+                paint.setStrokeWidth(Math.max(1.2f, w * 0.003f));
+                paint.setColor(0x66FFFFFF);
+                c.drawRoundRect(pill, rad, rad, paint);
+                paint.setStyle(Paint.Style.FILL);
+
+                Typeface pillFace = Typeface.create("sans-serif-medium", Typeface.NORMAL);
+                text(c, dateStr, (pl + pr) * 0.5f, pt + (pb - pt) * 0.70f, h * 0.016f, 0xFFFFFFFF, pillFace, true, 0.06f);
+            }
         }
         materialOverride = -1;
         drawingClock = false;

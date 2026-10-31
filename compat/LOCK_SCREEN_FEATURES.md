@@ -1,29 +1,33 @@
-# Aurora lock-screen feature coverage (v24)
+# Aurora lock-screen feature coverage (v25)
 
-Aurora implements lock-screen styles and controls for Samsung. It does not install Xiaomi firmware or claim complete native HyperOS parity.
+Aurora implements lock-screen styles and controls for Samsung, focusing on Xiaomi HyperOS 4 and HyperOS 2 Movie-like aesthetics.
 
 Reference sources checked on 31 October 2026:
-- Xiaomi HyperOS 4: https://os.mi.com/ (clock scaling, position, typography and glass effects; device restrictions apply).
-- Xiaomi global feature overview: https://www.mi.com/global/hyperos/ (cinematic lock screens, dynamic wallpapers and personalised editing; this page describes HyperOS 3 and later).
-- XimiTime leak report (7 August 2026): https://ximitime.com/hyperos-4-setup-screen-leak-confirms-10-major-new-features-99419/ (secondary reporting; transparent clocks and layered glass notifications, not a complete native API specification).
-- User-provided visual references: mixed filled/outline clocks, staggered and rotated layouts, vertical dates and saved designs.
+- Xiaomi HyperOS 4: https://os.mi.com/ (glass frames, transparent clocks, subtle outlines, customizable signatures).
+- Xiaomi HyperOS 2: Movie lock screens, dynamic layered depth ("动态层次感锁屏"), neon wireframe outlines and left vertical poster blocks.
+- XimiTime leak report (7 August 2026): https://ximitime.com/hyperos-4-setup-screen-leak-confirms-10-major-new-features-99419/ (HyperOS 4 setup editor with Cancel/Apply pills, signature "点击输入个性签名", and List/Stack/Count notification cards).
+- User-provided visual references: HyperOS 4 setup screen, Movie-like Lock Screens ("UP IN THE AIR", neon retriever with capsule date badge, cyan snowboarder block), and HyperOS 1/4 clean horizon & ultra-tall art clocks.
 
 ## Included
 
-- Thirteen clock templates: Depth Stack, Horizon, Offset, Editorial, Soft Stack, Split Outline, Poster, Staggered, Rotated, Cinema, Mountain, Magazine and Outline Cinema. Magazine supports a custom headline.
+- Nineteen clock templates:
+  - Classic & Editorial: Depth Stack, Horizon, Offset, Editorial, Soft Stack, Split Outline, Poster, Staggered, Rotated, Cinema, Mountain, Magazine, Outline Cinema.
+  - HyperOS 4: **HyperOS 4 Glass** (frosted rounded glass frame, top date, glass gradient clock digits and custom signature/motto line).
+  - HyperOS 2 Movie-like: **Movie: Up In Air** (top cinematic title + bottom corner accent date & time), **Movie: Neon Dog** (glowing double-stroke wireframe outline + top-right vertical date capsule pill), **Movie: Block** (left-aligned cyan stacked time, day and date poster block), **Classic Left** (HyperOS clean left-aligned bold time + date/weather + signature line), **Ultra-Tall Art** (four full-height vertical condensed numerals with date pill badge).
+- Customizable signature ("个性签名"): set personalized mottos ("Never stop exploring", "Stay hungry", etc.) rendered directly into the HyperOS 4 glass frame or classic layouts.
+- Customizable Movie Title for Movie poster layouts.
+- Neon Wireframe / Double-Stroke material (dual inner/outer stroke with luminous aura glow).
+- Graphical Notification Display selector in Editor matching HyperOS 4 (List with 3 bars, Stack with layered lip, Count with pill badge).
 - Two-axis clock dragging, pinch resizing, width, vertical stretch, weight, spacing, 12/24-hour time and optional seconds.
-- Independent hour/minute materials: filled/translucent, glass-style gradient/rim, outline and gradient. Custom colour, wallpaper-derived colour and opacity.
-- Short/full/numeric/hidden dates; Poster includes a vertical weekday. Mixed templates can put outlines above or behind the subject.
-- Photo depth with focused on-device segmentation, including supported VOC people, pets, vehicles and plants; transparent PNG cutouts for other subjects.
-- Muted looping local video wallpapers with lifecycle-based release, static-photo fallback, photo motion and wake fades. Static depth/glass are not applied over video.
-- Preview-first editor with phone-shaped preview, template thumbnails, Apply/Cancel drafts and reduced-motion support.
-- Cached wallpaper blur, softly tinted notification cards and decorative collapsed-stack layers.
-- Optional automatic-on-wake via a user-enabled Accessibility service. It receives protected wake broadcasts and System UI window-state events, requests no window content or gesture capability, avoids unlocked use/calls/duplicates, and uses a transient task that closes after system authentication.
-- Saved-design thumbnail gallery: save, swipe, apply and delete up to eight local designs. Privacy settings are not part of a design.
-- List, Stack and Count notification display modes with expand/collapse, bounded scrolling, open after authentication, horizontal swipe dismissal, individual × buttons and Clear all for clearable notifications (including beyond the display limit) and locked-content redaction.
-- Real active Android media sessions, with retained idle/stopped sessions hidden and a 30-second grace period only after observed active playback pauses: title/artist/artwork, previous/play-pause/next and seeking where supported. Notification access is required. Media details follow the notification privacy setting.
-- Actual battery level and next alarm, plus configurable flashlight/camera/alarm/phone/settings shortcuts. Locked camera uses the secure camera intent.
-- Existing settings and clock position are preserved on update. Selecting a different template or resetting the editor is an explicit change.
+- Independent hour/minute materials: filled/translucent, glass-style gradient/rim, outline, gradient and neon wireframe. Custom colour, wallpaper-derived colour and opacity.
+- Authentic HyperOS 4 editor styling with top Cancel dark pill, Apply blue capsule button, camera hole-punch preview frame and direct customization.
+- Photo depth with focused on-device segmentation, supporting people, pets, vehicles and plants; transparent PNG cutouts for other subjects.
+- Muted looping local video wallpapers with lifecycle-based release, static-photo fallback, photo motion and wake fades.
+- Optional automatic-on-wake via a user-enabled Accessibility service.
+- Saved-design thumbnail gallery: save, swipe, apply and delete local designs.
+- List, Stack and Count notification display modes with swipe dismissal, individual × buttons and Clear all.
+- Real active Android media sessions with playback controls and artwork.
+- Actual battery level, next alarm, and frosted glass flashlight/camera/app shortcuts.
 
 ## System boundaries and limitations
 

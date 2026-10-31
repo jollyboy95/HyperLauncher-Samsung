@@ -69,6 +69,9 @@ public final class AuroraConfig {
     public boolean autoWakeEnabled() { return prefs.getBoolean("autoWakeEnabled", false); }
     public boolean wakeAnimation() { return prefs.getBoolean("wakeAnimation", true); }
     public String videoWallpaper() { return prefs.getString("videoWallpaper", null); }
+    public String signature() { return prefs.getString("signature", "Never stop exploring"); }
+    public boolean showSignature() { return prefs.getBoolean("showSignature", true); }
+    public String movieTitle() { return prefs.getString("movieTitle", "UP IN\nTHE AIR"); }
     public boolean showMedia() { return prefs.getBoolean("showMedia", true); }
     public int notificationMode() {
         return prefs.getInt("notificationMode", prefs.getBoolean("notificationStack", true) ? 1 : 0);
@@ -83,6 +86,61 @@ public final class AuroraConfig {
     }
 
     public void applyPreset(int preset) {
+        if (preset == 13) {
+            // HyperOS 4 Glass Frame
+            prefs.edit().remove("clockYRatio").remove("hoursMaterial").remove("minutesMaterial")
+                    .putInt("clockPreset", 13).putInt("clockStyle", 0).putInt("clockMaterial", 1)
+                    .putInt("clockSize", 175).putInt("clockY", 0).putFloat("clockX", 0)
+                    .putFloat("clockStretch", 1.0f).putFloat("clockWeight", 0.65f)
+                    .putFloat("clockOpacity", 0.95f).putInt("clockColor", 0xFFFFFFFF)
+                    .putBoolean("autoClockColor", false).putBoolean("showSignature", true).apply();
+            return;
+        } else if (preset == 14) {
+            // Movie: Up In Air
+            prefs.edit().remove("clockYRatio").remove("hoursMaterial").remove("minutesMaterial")
+                    .putInt("clockPreset", 14).putInt("clockStyle", 0).putInt("clockMaterial", 0)
+                    .putInt("clockSize", 168).putInt("clockY", 0).putFloat("clockX", 0)
+                    .putFloat("clockStretch", 1.0f).putFloat("clockWeight", 0.90f)
+                    .putFloat("clockOpacity", 1.0f).putInt("clockColor", 0xFFFF453A)
+                    .putBoolean("autoClockColor", false).apply();
+            return;
+        } else if (preset == 15) {
+            // Movie: Neon Dog / Double Outline with vertical date pill
+            prefs.edit().remove("clockYRatio").remove("hoursMaterial").remove("minutesMaterial")
+                    .putInt("clockPreset", 15).putInt("clockStyle", 0).putInt("clockMaterial", 4)
+                    .putInt("clockSize", 172).putInt("clockY", 0).putFloat("clockX", 0)
+                    .putFloat("clockStretch", 1.15f).putFloat("clockWeight", 0.40f)
+                    .putFloat("clockOpacity", 0.95f).putInt("clockColor", 0xFFF7D19A)
+                    .putBoolean("outlineOverSubject", true).putBoolean("autoClockColor", false).apply();
+            return;
+        } else if (preset == 16) {
+            // Movie: Block Poster
+            prefs.edit().remove("clockYRatio").remove("hoursMaterial").remove("minutesMaterial")
+                    .putInt("clockPreset", 16).putInt("clockStyle", 0).putInt("clockMaterial", 0)
+                    .putInt("clockSize", 168).putInt("clockY", 0).putFloat("clockX", 0)
+                    .putFloat("clockStretch", 1.0f).putFloat("clockWeight", 0.95f)
+                    .putFloat("clockOpacity", 1.0f).putInt("clockColor", 0xFF00E5FF)
+                    .putBoolean("autoClockColor", false).apply();
+            return;
+        } else if (preset == 17) {
+            // Classic HyperOS Left
+            prefs.edit().remove("clockYRatio").remove("hoursMaterial").remove("minutesMaterial")
+                    .putInt("clockPreset", 17).putInt("clockStyle", 0).putInt("clockMaterial", 0)
+                    .putInt("clockSize", 180).putInt("clockY", 0).putFloat("clockX", 0)
+                    .putFloat("clockStretch", 1.0f).putFloat("clockWeight", 0.85f)
+                    .putFloat("clockOpacity", 0.95f).putInt("clockColor", 0xFFFFFFFF)
+                    .putBoolean("autoClockColor", false).putBoolean("showSignature", true).apply();
+            return;
+        } else if (preset == 18) {
+            // Ultra-Tall Art
+            prefs.edit().remove("clockYRatio").remove("hoursMaterial").remove("minutesMaterial")
+                    .putInt("clockPreset", 18).putInt("clockStyle", 0).putInt("clockMaterial", 0)
+                    .putInt("clockSize", 168).putInt("clockY", 0).putFloat("clockX", 0)
+                    .putFloat("clockStretch", 1.6f).putFloat("clockWeight", 0.25f)
+                    .putFloat("clockOpacity", 0.90f).putInt("clockColor", 0xFFFFFFFF)
+                    .putBoolean("autoClockColor", false).apply();
+            return;
+        }
         if (preset >= 5) {
             prefs.edit().remove("clockYRatio").remove("hoursMaterial").remove("minutesMaterial").putInt("clockPreset", preset).putInt("clockStyle", 0)
                     .putInt("clockSize", 168).putInt("clockY", 0).putFloat("clockX", 0)
