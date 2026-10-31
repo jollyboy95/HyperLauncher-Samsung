@@ -9,6 +9,22 @@ android {
         versionCode 2
         versionName '0.2.0-preview'
     }
+    signingConfigs {
+        release {
+            if (System.getenv('AURORA_KEYSTORE_PATH')) {
+                storeFile file(System.getenv('AURORA_KEYSTORE_PATH'))
+                storePassword System.getenv('AURORA_STORE_PASSWORD')
+                keyAlias System.getenv('AURORA_KEY_ALIAS')
+                keyPassword System.getenv('AURORA_KEY_PASSWORD')
+            }
+        }
+    }
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled false
+        }
+    }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
 }
 dependencies { testImplementation 'junit:junit:4.13.2' }
