@@ -20,7 +20,11 @@ public final class AuroraActivity extends Activity {
         FrameLayout root=new FrameLayout(this);
         scene=new AuroraSceneView(this,false);
         root.addView(scene,new FrameLayout.LayoutParams(-1,-1));
+        android.view.GestureDetector gestures=new android.view.GestureDetector(this,new android.view.GestureDetector.SimpleOnGestureListener(){
+            @Override public void onLongPress(MotionEvent e){startActivity(new Intent(AuroraActivity.this,AuroraSettingsActivity.class));}
+        });
         scene.setOnTouchListener((v,e)->{
+            gestures.onTouchEvent(e);
             if(e.getAction()==MotionEvent.ACTION_DOWN){downY=e.getY();return true;}
             if(e.getAction()==MotionEvent.ACTION_UP){
                 if(downY-e.getY()>60*getResources().getDisplayMetrics().density)unlock();
@@ -28,8 +32,7 @@ public final class AuroraActivity extends Activity {
             }
             return true;
         });
-        // Long-press opens customization without permanently visible controls.
-        scene.setOnLongClickListener(v->{startActivity(new Intent(this,AuroraSettingsActivity.class));return true;});
+
         TextView edit=new TextView(this);
         edit.setText("Customize");edit.setTextColor(0xAAFFFFFF);edit.setTextSize(12);
         edit.setGravity(Gravity.CENTER);
