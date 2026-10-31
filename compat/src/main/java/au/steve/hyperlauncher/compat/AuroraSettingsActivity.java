@@ -56,8 +56,19 @@ public final class AuroraSettingsActivity extends Activity {
         addTitle("Clock");
         Switch hour=new Switch(this);hour.setText("12-hour clock");hour.setTextColor(Color.WHITE);
         hour.setChecked(prefs.getBoolean("clock12",false));hour.setOnCheckedChangeListener((v,c)->{prefs.edit().putBoolean("clock12",c).apply();refreshPreview();});panel.addView(hour);
+        addInfo("Clock style");
+        String[] styles={"HyperOS Bold","Elegant Light","Modern Rounded"};
+        Spinner style=new Spinner(this);
+        ArrayAdapter<String> adapter=new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,styles);
+        style.setAdapter(adapter);
+        style.setSelection(prefs.getInt("clockStyle",0));
+        style.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){
+            public void onItemSelected(android.widget.AdapterView<?> parent,View view,int position,long id){prefs.edit().putInt("clockStyle",position).apply();refreshPreview();}
+            public void onNothingSelected(android.widget.AdapterView<?> parent){}
+        });
+        panel.addView(style);
         addInfo("Clock size");
-        SeekBar size=new SeekBar(this);size.setMax(60);size.setProgress(prefs.getInt("clockSize",88)-60);
+        SeekBar size=new SeekBar(this);size.setMax(60);size.setProgress(prefs.getInt("clockSize",112)-60);
         size.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){
             public void onProgressChanged(SeekBar s,int progress,boolean user){if(user){prefs.edit().putInt("clockSize",60+progress).apply();refreshPreview();}}
             public void onStartTrackingTouch(SeekBar s){} public void onStopTrackingTouch(SeekBar s){}
@@ -123,7 +134,9 @@ public final class AuroraSettingsActivity extends Activity {
         if(previewClock==null)return;
         previewClock.setText(new SimpleDateFormat(prefs.getBoolean("clock12",false)?"h:mm":"HH:mm",Locale.getDefault()).format(new Date()));
         // Preview is approximately two-thirds the full-screen clock size.
-        previewClock.setTextSize(prefs.getInt("clockSize",88)*0.65f);
+        previewClock.setTextSize(prefs.getInt("clockSize",112)*0.65f);
+        int style=prefs.getInt("clockStyle",0);
+        previewClock.setTypeface(Typeface.create(style==0?"sans-serif-condensed":style==1?"sans-serif-light":"sans-serif",style==0?Typeface.BOLD:Typeface.NORMAL));
         if(previewWallpaper!=null){
             String uri=prefs.getString("wallpaper",null);
             previewWallpaper.setImageDrawable(null);
