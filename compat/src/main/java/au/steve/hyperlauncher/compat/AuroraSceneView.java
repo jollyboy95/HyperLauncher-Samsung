@@ -5,6 +5,8 @@ import android.content.SharedPreferences;
 import android.graphics.*;
 import android.net.Uri;
 import android.view.View;
+import au.steve.hyperlauncher.compat.aurora.core.WallpaperTransform;
+import au.steve.hyperlauncher.compat.aurora.core.ColorMath;
 import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -65,10 +67,22 @@ public final class AuroraSceneView extends View {
         invalidate();
     }
     private void imageCover(Canvas canvas,Bitmap bitmap,float w,float h){
-        float scale=Math.max(w/bitmap.getWidth(),h/bitmap.getHeight());
-        float bw=bitmap.getWidth()*scale,bh=bitmap.getHeight()*scale;
+        WallpaperTransform t=WallpaperTransform.compute(bitmap.getWidth(),bitmap.getHeight(),w,h,
+            prefs.getFloat("wallpaperZoom",1f),prefs.getFloat("wallpaperFocusX",.5f),
+            prefs.getFloat("wallpaperFocusY",.5f));
         paint.reset();paint.setAntiAlias(true);paint.setFilterBitmap(true);
-        canvas.drawBitmap(bitmap,null,new RectF((w-bw)/2,(h-bh)/2,(w+bw)/2,(h+bh)/2),paint);
+        canvas.drawBitmap(bitmap,null,new RectF(t.dx,t.dy,t.dx+bitmap.getWidth()*t.scale,
+            t.dy+bitmap.getHeight()*t.scale),paint);
+    }
+    private int clockColour(){
+        int manual=prefs.getInt("clockColor",0xBFD0E9FF);
+        if(!prefs.getBoolean("autoClockColor",false)||background==null)return manual;
+        int w=background.getWidth(),h=background.getHeight();
+        int[] samples=new int[144];int k=0;
+        for(int y=0;y<12;y++)for(int x=0;x<12;x++)
+            samples[k++]=background.getPixel(Math.min(w-1,(x*2+1)*w/24),
+                Math.min(h-1,(y*2+1)*h/24));
+        return ColorMath.fromSamples(samples);
     }
     private void text(Canvas c,String s,float x,float baseline,float size,int color,Typeface face,boolean center){
         paint.reset();paint.setAntiAlias(true);paint.setColor(color);paint.setTypeface(face);
@@ -93,30 +107,41 @@ public final class AuroraSceneView extends View {
         int style=prefs.getInt("clockStyle",0);
         Typeface clockFace=Typeface.create(style==0?"sans-serif-condensed":style==1?"sans-serif-light":"sans-serif",style==0?Typeface.BOLD:Typeface.NORMAL);
         int preset=prefs.getInt("clockPreset",0);
-        float size=prefs.getInt("clockSize",160)*(preset==1?0.89f:1.12f);
-        float top=170+safeClockY(prefs.getInt("clockY",0));
-        int color=prefs.getInt("clockColor",0xBFD0E9FF);
-        // Date tracks the clock, rather than occupying a fixed coordinate that can overlap it.
-        float firstBaseline=preset==1?top+30:top;
-        float firstTop=firstBaseline-(preset==1?size*0.62f:size)*0.82f;
-        float dateY=Math.max(34f,firstTop-16f);
-        float x=preset==2?140:195;
+        float size=prefs.getInt("clockSize",160);
+        int color=clockColour();
+        // Measure the actual glyphs so the date and clock form one non-overlapping group.
+        Paint measure=new Paint(Paint.ANTI_ALIAS_FLAG);
+        measure.setTypeface(clockFace);
+        float x=preset==2?145f:195f;
+        String hours=digits.substring(0,2),minutes=digits.substring(2);
+        float requested=size*(preset==1?.65f:preset==3?.72f:1f);
+        float maxWidth=preset==1?355f:preset==3?355f:315f;
+        float widest=preset==1?measure.measureText(hours+":"+minutes):
+            preset==3?measure.measureText(digits):Math.max(measure.measureText(hours),measure.measureText(minutes));
+        measure.setTextSize(1f);
+        widest=preset==1?measure.measureText(hours+":"+minutes):
+            preset==3?measure.measureText(digits):Math.max(measure.measureText(hours),measure.measureText(minutes));
+        float fitted=Math.min(requested,maxWidth/Math.max(.01f,widest));
+        float lineHeight=fitted*.83f;
+        float clockHeight=preset==0||preset==2?fitted+lineHeight:fitted;
+        float groupHeight=clockHeight+34f;
+        float top=Math.max(42f,Math.min(722f-groupHeight,116f+safeClockY(prefs.getInt("clockY",0))));
+        float dateY=top+12f;
+        float firstBaseline=top+25f+fitted*.80f;
         text(c,date,x,dateY,12,0xFFE6F1FF,dateFace,true);
         if(preset==1){
-            text(c,digits.substring(0,2)+":"+digits.substring(2),195,firstBaseline,size*0.62f,color,clockFace,true);
+            text(c,hours+":"+minutes,195f,firstBaseline,fitted,color,clockFace,true);
         }else if(preset==3){
-            // Tall single-row magazine-style digits, with a compact width to leave wallpaper visible.
-            Typeface tall=Typeface.create("sans-serif-condensed",Typeface.NORMAL);
-            text(c,digits,195,top+size*0.10f,size*0.72f,color,tall,true);
+            text(c,digits,195f,firstBaseline,fitted,color,clockFace,true);
         }else{
-            text(c,digits.substring(0,2),x,top,size,color,clockFace,true);
-            text(c,digits.substring(2),x,top+size*0.77f,size,color,clockFace,true);
+            text(c,hours,x,firstBaseline,fitted,color,clockFace,true);
+            text(c,minutes,x,firstBaseline+lineHeight,fitted,color,clockFace,true);
         }
         if(editing){
             paint.reset();paint.setAntiAlias(true);paint.setColor(0x668DC9FF);
             paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(1.5f);
-            float bottom=preset==1?firstBaseline+16:top+size*0.87f;
-            c.drawRoundRect(new RectF(25,Math.max(20,dateY-25),365,bottom),16,16,paint);
+            c.drawRoundRect(new RectF(20f,Math.max(20f,top-8f),370f,
+                Math.min(745f,firstBaseline+(preset==0||preset==2?lineHeight:0)+12f)),16,16,paint);
             paint.setStyle(Paint.Style.FILL);
         }
         // Optional transparent PNG foreground is composited above both rows of digits.
