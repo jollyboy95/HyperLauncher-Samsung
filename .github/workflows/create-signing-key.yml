@@ -1,0 +1,35 @@
+name: Create Aurora signing key (one-time)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require private backup passphrase
+        env:
+          PASSPHRASE: ${{ secrets.AURORA_BACKUP_PASSPHRASE }}
+        run: |
+          if [ -z "$PASSPHRASE" ]; then
+            echo "::error::Add AURORA_BACKUP_PASSPHRASE in repository Actions secrets before running."
+            exit 1
+          fi
+      - name: Generate keystore and encrypt backup
+        shell: bash
+        env:
+          PASSPHRASE: ${{ secrets.AURORA_BACKUP_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          STORE_PASS="$(openssl rand -hex 24)"
+          KEY_PASS="$STORE_PASS"
+          keytool -genkeypair -noprompt -keystore aurora-release.jks -alias aurora -keyalg RSA -keysize 3072 -validity 10000 -storepass "$STORE_PASS" -keypass "$KEY_PASS" -dname "CN=Aurora Depth, OU=Mobile, O=Aurora Depth, C=AU"
+          printf 'AURORA_STORE_PASSWORD=%s\nAURORA_KEY_PASSWORD=%s\nAURORA_KEY_ALIAS=aurora\n' "$STORE_PASS" "$KEY_PASS" > aurora-signing-credentials.txt
+          tar -czf - aurora-release.jks aurora-signing-credentials.txt | openssl enc -aes-256-cbc -pbkdf2 -salt -out aurora-signing-backup.tar.gz.enc -pass env:PASSPHRASE
+          rm -f aurora-release.jks aurora-signing-credentials.txt
+      - name: Download encrypted backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: aurora-encrypted-signing-backup
+          path: aurora-signing-backup.tar.gz.enc
+          retention-days: 1
