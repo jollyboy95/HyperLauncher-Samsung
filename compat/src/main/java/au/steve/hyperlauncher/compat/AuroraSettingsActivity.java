@@ -136,7 +136,8 @@ public final class AuroraSettingsActivity extends Activity {
                 c.setConnectTimeout(8000);c.setReadTimeout(8000);c.setRequestProperty("Accept","application/vnd.github+json");
                 c.setRequestProperty("User-Agent","AuroraDepth-Android");
                 int status=c.getResponseCode();
-                if(status==404) result="No published release yet. GitHub Actions artifacts are not published releases.";
+                if(status==404) result="No published Aurora release yet. The signed APKs in Actions are build artifacts, not GitHub Releases.";
+                else if(status==403) result="GitHub API access is restricted or rate-limited (HTTP 403). Try again later or open Releases.";
                 else if(status!=200) result="Update check unavailable (HTTP "+status+").";
                 else {
                     ByteArrayOutputStream out=new ByteArrayOutputStream();byte[] buf=new byte[4096];int n;
