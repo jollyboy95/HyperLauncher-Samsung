@@ -1,7 +1,7 @@
-name: Build compatibility prototype
+name: Build Aurora Depth preview
 on:
   push:
-    branches: [main]
+    branches: [main, feature/aurora-lockscreen]
     paths: ['compat/**', '*.gradle', 'gradle.properties', '.github/workflows/compat.yml']
   pull_request:
   workflow_dispatch:
@@ -28,7 +28,7 @@ jobs:
         run: gradle --no-daemon :compat:testDebugUnitTest :compat:lintDebug :compat:assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: HyperLauncher-compatibility-debug
+          name: AuroraDepth-preview-debug
           path: compat/build/outputs/apk/debug/*.apk
       - uses: actions/upload-artifact@v4
         if: always()
