@@ -27,7 +27,18 @@ public final class AuroraSceneView extends View {
     }
     public void setEditing(boolean value){editing=value;invalidate();}
     public void startClockDrag(){dragClockStart=prefs.getInt("clockY",0);}
-    public void moveClock(float delta){int y=Math.max(-135,Math.min(250,dragClockStart+Math.round(delta*844f/Math.max(1,getHeight()))));prefs.edit().putInt("clockY",y).apply();invalidate();}
+    public int safeClockY(int desired){
+        int preset=prefs.getInt("clockPreset",0);
+        float size=prefs.getInt("clockSize",160)*(preset==1?0.89f:1.12f);
+        // Keep both rows inside the composition, even at maximum font size.
+        int minimum=(int)Math.ceil(size*0.82f+20f-170f);
+        int maximum=(int)Math.floor(720f-170f-(preset==1?30f:size*0.77f));
+        return Math.max(minimum,Math.min(Math.max(minimum,maximum),desired));
+    }
+    public void moveClock(float delta){
+        int y=safeClockY(dragClockStart+Math.round(delta*844f/Math.max(1,getHeight())));
+        prefs.edit().putInt("clockY",y).apply();invalidate();
+    }
     private Bitmap load(String value){
         if(value==null)return null;
         try(InputStream stream=getContext().getContentResolver().openInputStream(Uri.parse(value))){
@@ -84,7 +95,7 @@ public final class AuroraSceneView extends View {
         Typeface clockFace=Typeface.create(style==0?"sans-serif-condensed":style==1?"sans-serif-light":"sans-serif",style==0?Typeface.BOLD:Typeface.NORMAL);
         int preset=prefs.getInt("clockPreset",0);
         float size=prefs.getInt("clockSize",160)*(preset==1?0.89f:1.12f);
-        float top=170+prefs.getInt("clockY",0);
+        float top=170+safeClockY(prefs.getInt("clockY",0));
         int color=prefs.getInt("clockColor",0xBFD0E9FF);
         float x=preset==2?140:195;
         if(preset==1)text(c,digits.substring(0,2)+":"+digits.substring(2),195,top+30,size*0.62f,color,clockFace,true);
