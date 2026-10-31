@@ -4,9 +4,13 @@ package au.steve.hyperlauncher.compat.aurora.core;
 public final class MaskMath {
     private MaskMath(){}
     public static byte[] refine(float[] confidence,int w,int h){
+        return refine(confidence, w, h, 0.30f);
+    }
+    public static byte[] refine(float[] confidence,int w,int h,float threshold){
         if(w<=0||h<=0||confidence==null||confidence.length!=w*h)throw new IllegalArgumentException("Invalid mask");
+        float cutoff=Math.max(.05f,Math.min(.8f,threshold));
         float[] a=new float[w*h];
-        for(int i=0;i<a.length;i++){float t=Math.max(0,Math.min(1,(confidence[i]-.30f)/.50f));a[i]=t*t*(3-2*t);}
+        for(int i=0;i<a.length;i++){float t=Math.max(0,Math.min(1,(confidence[i]-cutoff)/Math.max(.05f,.80f-cutoff)));a[i]=t*t*(3-2*t);}
         byte[] out=new byte[a.length];
         for(int y=0;y<h;y++)for(int x=0;x<w;x++){
             int i=y*w+x;float v=a[i];

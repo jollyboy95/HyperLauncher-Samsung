@@ -7,6 +7,7 @@ import android.graphics.BitmapFactory;
 import android.net.Uri;
 import au.steve.hyperlauncher.compat.aurora.core.DepthCompositor;
 import au.steve.hyperlauncher.compat.aurora.core.LabelMask;
+import au.steve.hyperlauncher.compat.aurora.core.SubjectRegion;
 import au.steve.hyperlauncher.compat.aurora.core.MaskMath;
 import org.tensorflow.lite.DataType;
 import org.tensorflow.lite.Interpreter;
@@ -92,7 +93,7 @@ public final class DepthEngine {
     }
 
     public static boolean isCurrentMask(String path) {
-        return path != null && new File(path).getName().startsWith("depth-v2-");
+        return path != null && new File(path).getName().startsWith("depth-v3-");
     }
 
     public File cachedMask(Uri wallpaper) {
@@ -111,33 +112,37 @@ public final class DepthEngine {
     private synchronized File segment(Uri wallpaper, Bitmap source, float threshold) throws Exception {
         if (source == null || source.getWidth() <= 0) return null;
         ensureInterpreter();
-        Tensor input = interpreter.getInputTensor(0);
-        int[] inShape = input.shape();
-        int ih = inShape.length >= 3 ? inShape[1] : 257;
-        int iw = inShape.length >= 4 ? inShape[2] : 257;
-        Bitmap scaled = Bitmap.createScaledBitmap(source, iw, ih, true);
-        Object inputBuffer = buildInput(input, scaled);
         Tensor output = interpreter.getOutputTensor(0);
-        int[] outShape = output.shape();
-        int[] dimensions = LabelMask.hwcDimensions(outShape);
-        int height = dimensions[0];
-        int width = dimensions[1];
-        int classes = dimensions[2];
-        if (output.dataType() != DataType.FLOAT32) {
-            throw new IllegalStateException("Expected float DeepLab output");
+        int[] dimensions = LabelMask.hwcDimensions(output.shape());
+        int height = dimensions[0], width = dimensions[1], classes = dimensions[2];
+        float[] confidence = infer(source, height, width, classes);
+        SubjectRegion region = SubjectRegion.locate(confidence, width, height, source.getWidth(), source.getHeight());
+        byte[] full;
+        if (region != null) {
+            Bitmap crop = Bitmap.createBitmap(source, region.left, region.top, region.width(), region.height());
+            float[] detailed;
+            try {
+                detailed = infer(crop, height, width, classes);
+            } finally {
+                if (crop != source) crop.recycle();
+            }
+            // Retain the coarse result if the focused pass cannot find a subject.
+            boolean found = false;
+            for (float value : detailed) if (value >= 0.5f) { found = true; break; }
+            if (found) {
+                float[] projected = region.project(detailed, width, height, source.getWidth(), source.getHeight());
+                full = MaskMath.refine(projected, source.getWidth(), source.getHeight(), threshold);
+            } else {
+                full = DepthCompositor.upsampleNearest(MaskMath.refine(confidence, width, height, threshold),
+                        width, height, source.getWidth(), source.getHeight());
+            }
+        } else {
+            boolean found = false;
+            for (float value : confidence) if (value >= 0.2f) { found = true; break; }
+            if (!found) return null;
+            full = DepthCompositor.upsampleNearest(MaskMath.refine(confidence, width, height, threshold),
+                    width, height, source.getWidth(), source.getHeight());
         }
-        ByteBuffer raw = ByteBuffer.allocateDirect(output.numBytes()).order(ByteOrder.nativeOrder());
-        interpreter.run(inputBuffer, raw);
-        raw.rewind();
-        float[] flat = new float[height * width * classes];
-        raw.asFloatBuffer().get(flat);
-        if (scaled != source) scaled.recycle();
-        float[] confidence = LabelMask.selectSubject(flat, height, width, classes);
-        boolean any = false;
-        for (float v : confidence) if (v > 0.2f) { any = true; break; }
-        if (!any) return null;
-        byte[] refined = MaskMath.refine(shiftThreshold(confidence, threshold), width, height);
-        byte[] full = DepthCompositor.upsampleNearest(refined, width, height, source.getWidth(), source.getHeight());
         int[] pixels = new int[source.getWidth() * source.getHeight()];
         source.getPixels(pixels, 0, source.getWidth(), 0, 0, source.getWidth(), source.getHeight());
         int[] composed = DepthCompositor.apply(pixels, full, source.getWidth(), source.getHeight());
@@ -151,13 +156,23 @@ public final class DepthEngine {
         return file;
     }
 
-    private static float[] shiftThreshold(float[] confidence, float threshold) {
-        float[] out = new float[confidence.length];
-        float t = Math.max(0.05f, Math.min(0.8f, threshold));
-        for (int i = 0; i < confidence.length; i++) {
-            out[i] = Math.max(0f, (confidence[i] - t) / Math.max(0.05f, 1f - t) + t);
+    private float[] infer(Bitmap source, int height, int width, int classes) {
+        Tensor input = interpreter.getInputTensor(0);
+        int[] shape = input.shape();
+        Bitmap scaled = Bitmap.createScaledBitmap(source, shape[2], shape[1], true);
+        try {
+            Object inputBuffer = buildInput(input, scaled);
+            Tensor output = interpreter.getOutputTensor(0);
+            if (output.dataType() != DataType.FLOAT32) throw new IllegalStateException("Expected float DeepLab output");
+            ByteBuffer raw = ByteBuffer.allocateDirect(output.numBytes()).order(ByteOrder.nativeOrder());
+            interpreter.run(inputBuffer, raw);
+            raw.rewind();
+            float[] flat = new float[height * width * classes];
+            raw.asFloatBuffer().get(flat);
+            return LabelMask.selectSubject(flat, height, width, classes);
+        } finally {
+            if (scaled != source) scaled.recycle();
         }
-        return out;
     }
 
     private Object buildInput(Tensor input, Bitmap scaled) {
@@ -193,7 +208,7 @@ public final class DepthEngine {
     }
 
     private File maskFile(Uri wallpaper) {
-        String name = "depth-v2-" + Integer.toHexString(String.valueOf(wallpaper).hashCode()) + ".png";
+        String name = "depth-v3-" + Integer.toHexString(String.valueOf(wallpaper).hashCode()) + ".png";
         return new File(context.getFilesDir(), name);
     }
 
