@@ -68,6 +68,9 @@ public final class AuroraActivity extends Activity {
         return view;
     }
     private void toggleTorch(){
+        if(checkSelfPermission(android.Manifest.permission.CAMERA)!=android.content.pm.PackageManager.PERMISSION_GRANTED){
+            requestPermissions(new String[]{android.Manifest.permission.CAMERA},42);return;
+        }
         try{
             if(torchId==null){
                 for(String id:cameras.getCameraIdList()){
