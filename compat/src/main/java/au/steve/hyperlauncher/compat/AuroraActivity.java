@@ -50,7 +50,6 @@ public final class AuroraActivity extends Activity {
         super.onCreate(state);
         config = new AuroraConfig(this);
         setShowWhenLocked(true);
-        immersive();
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(Color.BLACK);
         scene = new AuroraSceneView(this, false);
@@ -112,6 +111,8 @@ public final class AuroraActivity extends Activity {
             return insets;
         });
         setContentView(root);
+        // Window insets controls require the decor installed by setContentView.
+        immersive();
     }
 
     private void immersive() {
