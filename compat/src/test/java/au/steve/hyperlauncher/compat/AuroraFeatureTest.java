@@ -170,6 +170,7 @@ public class AuroraFeatureTest {
         config();
         try (var activity = Robolectric.buildActivity(AuroraSettingsActivity.class).setup().visible()) {
             View root = activity.get().getWindow().getDecorView();
+            findText(root, "Customize").performClick();
             findText(root, "Designs").performClick(); findText(root, "Save current design").performClick();
             android.app.AlertDialog dialog = org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
             android.widget.EditText input = findEditText(dialog.getWindow().getDecorView());

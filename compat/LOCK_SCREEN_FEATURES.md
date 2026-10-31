@@ -1,4 +1,4 @@
-# Aurora lock-screen feature coverage (v25)
+# Aurora lock-screen feature coverage (v27)
 
 Aurora implements lock-screen styles and controls for Samsung, focusing on Xiaomi HyperOS 4 and HyperOS 2 Movie-like aesthetics.
 
@@ -53,3 +53,12 @@ This is a user-authorised lock-screen launch helper, not a screen reader. Its XM
 Framework launch/resume/draw tests, all template/material combinations, editor/gallery interactions, notification redaction and stack expansion, notification actions, real media-controller routing, media visibility/expiry and player switching, snapshot numeric-type round trips and preservation of existing clock settings are covered by automated tests. Dismissal tests exercise actual notification-service cancellation, protected items, disconnected access, buttons and swipes inside a scrolling list. Automatic-wake policy, lifecycle/broadcast launches, legacy receiver compatibility, limited service capabilities, draft isolation and blur math are also covered. Local visual QA uses the supplied pug wallpaper, which is not committed to the public repository.
 
 Version 24 adds an upper-subject inference pass for small details such as ears and hair, merging it with the body mask. Older automatic masks regenerate with the new depth-v5 cache format.
+
+## v27 editor redesign
+
+- Large style gallery with Customize and My designs entry points; existing choices are preserved when customising the current style.
+- Separate editing view with rounded live preview, expandable controls, horizontal category navigation and selected states.
+- Light/dark surfaces, grouped controls, readable slider values and consistently sized touch targets.
+- Dedicated notification and About pages. Draft isolation and Apply/Cancel behavior remain.
+- Portrait, compact landscape and API 28/35 paths have framework tests. The available emulator cannot boot because its system image is absent; physical Samsung behavior is unverified.
+- This is an original HyperOS-inspired UI reconstruction, not a claim of pixel-identical HyperOS 4 parity. Proprietary fonts, assets, shaders and Samsung-owned authentication/AOD are not replaced.

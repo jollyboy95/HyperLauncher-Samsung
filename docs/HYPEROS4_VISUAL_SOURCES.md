@@ -57,3 +57,27 @@ No Aurora code change or new APK was required for this source review. v26 remain
 Reviewed original commit c84c224b2285590604e9e30e896a9a379e07c293 independently of the earlier copy. The original has substantially more settings/features. Its app/build.gradle.kts uses Miuix UI, preferences, icons and blur libraries at version 0.9.4, with Compose. MainActivity uses MiuixTheme and light/dark/dynamic palette choices. NotificationStackBlurSettings contains a configurable stack-depth blur policy; this is custom module behavior, not evidence of stock Xiaomi scroll physics. LockscreenWidget targets Xiaomi clock DataUtils; SettingsAppearanceSettings concerns modification of Xiaomi Settings and should not be confused with the module's own settings UI.
 
 The most actionable independent dependency for a Samsung-compatible settings redesign is https://github.com/compose-miuix-ui/miuix — an Apache-2.0 Compose UI library. Its components can be evaluated separately from HyperChanger's AGPL application code and Xiaomi hooks. Aurora currently uses Java Views, so adopting it would require a deliberate Kotlin/Compose settings migration and GitHub build/interaction validation. No dependency or application code was changed during this review.
+
+## User-supplied visual references added during v27
+
+- https://ximitime.com/3-hyperos-lock-screen-setups-to-make-your-xiaomi-devices-feel-high-end-81883/ — dated 5 February 2026. Discusses neon depth, natural macro/vertical clock and illustrated outline-clock compositions. The displayed hero photograph was inspected: a tall stacked lavender clock, right-side date and a flower overlapping the digits. It is general HyperOS styling evidence, not a complete HyperOS 4 settings specification. The photograph is not bundled in Aurora.
+- https://mobileosupdates.com/apps/com.miui.aod — mirror listing reports DEV-2455.1.0.1-09282249, versionCode 22455101, updated 15 October 2026. Seven listed screenshots were inspected as visual references: large style carousel, Customize entry, separate wallpaper/filter/depth editing, and grouped AOD settings. Screenshot build dates are not established by the listing. Mirror authenticity statements were not independently verified. No APK from this listing was installed or incorporated.
+- https://mobileosupdates.com/apps/com.android.deskclock — listing reports 18.26.0, versionCode 1306002600, updated 7 September 2026. This is an alarm/clock reference, not the keyguard editor. Mirror package claims are not a Samsung compatibility result.
+
+## v27 editor implementation and fidelity boundary
+
+The editor now starts with a horizontally browsable large style gallery and Customize action. The detail screen uses a large preview, an expandable controls sheet, horizontally scrollable categories, themed grouped controls, explicit selection states, and light/dark surfaces. Notifications and About have dedicated pages. Android status/navigation/cutout insets and compact windows are accommodated. Existing artwork/templates, draft settings and notification fixes remain.
+
+This is original Java/View implementation, not an import of HyperChanger's AGPL implementation or Xiaomi resources. Miuix/Compose adoption was evaluated as a possible migration but is not a dependency of this change. Exact proprietary typography, shaders, Xiaomi's system AOD/PIN/fingerprint screens and every device-specific behavior are not reproduced. The external screenshot sets do not define one complete, version-matched HyperOS 4 specification, so pixel-identical parity cannot be asserted.
+
+Local emulator attempt: the configured Pixel 4 API 31 AVD cannot boot because its system-image directory is missing. Rendered Android framework tests provide visual and interaction checks; no emulator/phone runtime result is claimed.
+
+### Firmware links supplied during the editor work
+
+SourceForge's mutable latest-download URL was checked using HTTP headers only. At this review it resolved to xiaomi.eu_SHENNONG_OS3.0.310.0.WNBCNXM_16_a59f1c0fda.zip, 7,063,774,214 bytes. It is not a HyperOS 4 reference, and its cached website listing differed from the live redirect. No ROM body was downloaded.
+
+The supplied Aliyun OTA link for popsicle-ota_full-OS4.0.5.0.XPBCNXM-user-17.0-03fc15795d.zip was inspected with bounded HTTP range reads. Its declared archive size is 9,172,351,158 bytes. ZIP central-directory inventory contains seven entries, including payload.bin and Android OTA metadata; there are no directly accessible APK members in the outer ZIP. Metadata identifies Xiaomi/popsicle/popsicle Android 17, SDK 37, incremental 17OS4.0.261020.223031081.QCPECN.S, security patch 2026-10-01. These are observed metadata declarations, not signature validation. The multipart ETag is not treated as SHA-256. System UI APK extraction and full OTA verification remain pending; the 9 GB body was not downloaded. Metadata-only inventory is saved privately for further investigation.
+
+A temporary signed parts-download link supplied by the user returned HTTP 403; its expiry parameter was already past (1 November 2026, 07:53:31 Australia/Sydney). The signed query is intentionally omitted from public notes. A fresh link is needed to inspect that archive.
+
+Final local v27 checks: 66 tests passed with zero failures/errors/skips; debug APK assembled; lint passed with warnings. Eight light/dark/compact rendered framework previews were inspected. No physical phone result is implied.

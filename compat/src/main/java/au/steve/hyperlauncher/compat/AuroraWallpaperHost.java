@@ -20,6 +20,15 @@ public final class AuroraWallpaperHost extends FrameLayout implements TextureVie
     private Surface surface;
     private String loaded;
     private boolean active;
+    private float previewRadius;
+    private final android.graphics.Path previewClip = new android.graphics.Path();
+    public void setPreviewRadius(float value) { previewRadius=Math.max(0,value);invalidate(); }
+    @Override public void draw(android.graphics.Canvas canvas) {
+        if(previewRadius==0) {super.draw(canvas);return;}
+        int save=canvas.save();previewClip.reset();
+        previewClip.addRoundRect(0,0,getWidth(),getHeight(),previewRadius,previewRadius,android.graphics.Path.Direction.CW);
+        canvas.clipPath(previewClip);super.draw(canvas);canvas.restoreToCount(save);
+    }
 
     public AuroraWallpaperHost(Context context, boolean preview) {
         this(context, preview, new AuroraConfig(context));

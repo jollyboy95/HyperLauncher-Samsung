@@ -51,7 +51,7 @@ public final class AuroraSettingsActivity extends Activity {
             "Poster", "Staggered", "Rotated", "Cinema", "Mountain", "Magazine", "Outline Cinema",
             "HyperOS 4 Glass", "Movie: Up In Air", "Movie: Neon Dog", "Movie: Block", "Classic Left", "Ultra-Tall Art"
     };
-    private static final String[] TABS = {"Clock", "Colour", "Depth", "Wallpaper", "Features", "Designs"};
+    private static final String[] TABS = {"Clock", "Colour", "Depth", "Wallpaper", "Features", "Designs", "Notifications", "About"};
     private static final int[] CLOCK_COLOURS = {0xE8F4FBFF, 0xF2FFFFFF, 0xF2F3D5B0, 0xF2F5B6C9, 0xE8C9E4FF};
     private static final String[] COLOUR_NAMES = {"Ice", "Pearl", "Champagne", "Rose", "Lilac"};
 
@@ -60,6 +60,17 @@ public final class AuroraSettingsActivity extends Activity {
     private AuroraSceneView preview;
     private AuroraWallpaperHost wallpaperHost;
     private LinearLayout sheet;
+    private LinearLayout chrome;
+    private FrameLayout editorRoot;
+    private LinearLayout styleGallery;
+    private boolean galleryMode = true;
+    private TextView toolbarTitle;
+    private TextView sheetHandle;
+    private boolean expanded;
+    private boolean dark;
+    private int ink, muted, surface, card, accent;
+    private ScrollView controlsScroll;
+    private HorizontalScrollView categoryScroll;
     private TextView depthStatus;
     private TextView updateStatus;
     private Button downloadButton;
@@ -76,11 +87,35 @@ public final class AuroraSettingsActivity extends Activity {
     };
 
     @Override public void onCreate(Bundle b) {
+        boolean night = (getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
+                == android.content.res.Configuration.UI_MODE_NIGHT_YES;
+        setTheme(night ? android.R.style.Theme_Material_NoActionBar : android.R.style.Theme_Material_Light_NoActionBar);
         super.onCreate(b);
         config = EditorDraft.open(this, b != null && b.getBoolean("restoreDraft", false));
         depthEngine = new DepthEngine(this);
+        dark = (getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
+                == android.content.res.Configuration.UI_MODE_NIGHT_YES;
+        ink = dark ? 0xFFF4F5F8 : 0xFF191A1D;
+        muted = dark ? 0xFFA3A7B2 : 0xFF747780;
+        surface = dark ? 0xFF101114 : 0xFFF3F4F6;
+        card = dark ? 0xFF202126 : 0xFFFFFFFF;
+        accent = dark ? 0xFF82AEFF : 0xFF2671F5;
+        expanded = b != null && b.getBoolean("expandedControls", false);
         FrameLayout root = new FrameLayout(this);
-        root.setBackgroundColor(0xFF070B12);
+        editorRoot = root;
+        root.setBackgroundColor(surface);
+        getWindow().setStatusBarColor(surface);
+        getWindow().setNavigationBarColor(surface);
+        root.setSystemUiVisibility(dark ? 0 : View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
+        root.setOnApplyWindowInsetsListener((view, insets) -> {
+            if (android.os.Build.VERSION.SDK_INT >= 30) {
+                android.graphics.Insets bars = insets.getInsets(android.view.WindowInsets.Type.systemBars()
+                        | android.view.WindowInsets.Type.displayCutout());
+                view.setPadding(bars.left, bars.top, bars.right, bars.bottom);
+            } else view.setPadding(insets.getSystemWindowInsetLeft(), insets.getSystemWindowInsetTop(),
+                    insets.getSystemWindowInsetRight(), insets.getSystemWindowInsetBottom());
+            return insets;
+        });
 
         wallpaperHost = new AuroraWallpaperHost(this, true, config);
         preview = wallpaperHost.scene;
@@ -109,89 +144,64 @@ public final class AuroraSettingsActivity extends Activity {
                 return e.getAction() == MotionEvent.ACTION_UP;
             }
         });
-        int screenHeight = getResources().getDisplayMetrics().heightPixels;
-        int screenWidth = getResources().getDisplayMetrics().widthPixels;
-        int previewHeight = Math.max(dp(180), screenHeight - dp(410));
-        FrameLayout.LayoutParams pp = new FrameLayout.LayoutParams(
-                Math.round(previewHeight * screenWidth / (float)screenHeight), previewHeight, Gravity.TOP | Gravity.CENTER_HORIZONTAL);
-        pp.topMargin = dp(64);
         wallpaperHost.setClipToOutline(true);
         wallpaperHost.setOutlineProvider(new android.view.ViewOutlineProvider() {
             @Override public void getOutline(View view, android.graphics.Outline outline) {
-                outline.setRoundRect(0,0,view.getWidth(),view.getHeight(),dp(26));
+                outline.setRoundRect(0,0,view.getWidth(),view.getHeight(),dp(30));
             }
         });
-        root.addView(wallpaperHost, pp);
+        wallpaperHost.setPreviewRadius(dp(30));
+        wallpaperHost.setElevation(dp(5));
+        root.addView(wallpaperHost, new FrameLayout.LayoutParams(dp(180), dp(360), Gravity.TOP | Gravity.CENTER_HORIZONTAL));
 
-        View holePunch = new View(this);
-        GradientDrawable hole = new GradientDrawable();
-        hole.setShape(GradientDrawable.OVAL);
-        hole.setColor(0xFF000000);
-        hole.setStroke(dp(1), 0x33FFFFFF);
-        holePunch.setBackground(hole);
-        FrameLayout.LayoutParams hp = new FrameLayout.LayoutParams(dp(11), dp(11), Gravity.TOP | Gravity.CENTER_HORIZONTAL);
-        hp.topMargin = dp(72);
-        root.addView(holePunch, hp);
-
-        LinearLayout chrome = new LinearLayout(this);
+        chrome = new LinearLayout(this);
         chrome.setOrientation(LinearLayout.VERTICAL);
-        FrameLayout.LayoutParams cp = new FrameLayout.LayoutParams(-1, dp(304), Gravity.BOTTOM);
-        chrome.setLayoutParams(cp);
-        chrome.setPadding(dp(16), dp(12), dp(16), dp(18));
-        chrome.setBackground(panel(0xEE101826, dp(28)));
-
-        chrome.addView(presetStrip());
-        chrome.addView(tabBar());
+        chrome.setPadding(dp(20), 0, dp(20), dp(12));
+        chrome.setBackground(panel(surface, dp(32)));
+        sheetHandle = label("⌃  All controls", 12, muted, true);
+        sheetHandle.setGravity(Gravity.CENTER);
+        sheetHandle.setContentDescription("Expand editor controls");
+        sheetHandle.setOnClickListener(v -> { expanded = !expanded; layoutEditor(); });
+        chrome.addView(sheetHandle, new LinearLayout.LayoutParams(-1, dp(40)));
+        HorizontalScrollView categories = new HorizontalScrollView(this);
+        categoryScroll=categories;
+        categories.setHorizontalScrollBarEnabled(false);
+        categories.addView(tabBar());
+        chrome.addView(categories, new LinearLayout.LayoutParams(-1, dp(52)));
         sheet = new LinearLayout(this);
         sheet.setOrientation(LinearLayout.VERTICAL);
-        ScrollView scroll = new ScrollView(this);
-        scroll.addView(sheet);
-        chrome.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1f));
-        root.addView(chrome);
+        controlsScroll = new ScrollView(this);
+        controlsScroll.setFillViewport(false);
+        controlsScroll.setClipToPadding(false);
+        controlsScroll.setPadding(0, dp(8), 0, dp(16));
+        controlsScroll.addView(sheet);
+        chrome.addView(controlsScroll, new LinearLayout.LayoutParams(-1, 0, 1f));
+        root.addView(chrome, new FrameLayout.LayoutParams(-1, dp(330), Gravity.BOTTOM));
+        root.addOnLayoutChangeListener((v,l,t,r,bt,ol,ot,or,ob) -> {
+            if (r-l != or-ol || bt-t != ob-ot) layoutEditor();
+        });
         LinearLayout toolbar = new LinearLayout(this); toolbar.setGravity(Gravity.CENTER_VERTICAL);
         toolbar.setPadding(dp(16),dp(8),dp(16),dp(8));
-        TextView cancel = label("Cancel",14,Color.WHITE,true); cancel.setGravity(Gravity.CENTER);
-        cancel.setBackground(panel(0x33FFFFFF, dp(18)));
+        TextView cancel = label("Cancel",14,ink,true); cancel.setGravity(Gravity.CENTER);
+        cancel.setBackground(touchSurface(card, dp(22)));
         cancel.setContentDescription("Cancel lock-screen changes");cancel.setOnClickListener(v -> finish());
         toolbar.addView(cancel,new LinearLayout.LayoutParams(dp(72),dp(38)));
-        TextView title = label("HyperOS 4 Lock screen",16,Color.WHITE,true);title.setGravity(Gravity.CENTER);
+        TextView title = label("Lock screen",18,ink,true);title.setGravity(Gravity.CENTER);
+        toolbarTitle=title;title.setContentDescription("Browse lock-screen styles");
+        title.setOnClickListener(v -> showGallery(true));
         toolbar.addView(title,new LinearLayout.LayoutParams(0,dp(38),1));
         TextView apply = label("Apply",14,Color.WHITE,true);apply.setGravity(Gravity.CENTER);
-        apply.setBackground(panel(0xFF007AFF,dp(18)));apply.setContentDescription("Apply lock-screen changes");
+        apply.setBackground(touchSurface(0xFF2671F5,dp(22)));apply.setContentDescription("Apply lock-screen changes");
         apply.setOnClickListener(v -> applyAndFinish());toolbar.addView(apply,new LinearLayout.LayoutParams(dp(72),dp(38)));
         root.addView(toolbar,new FrameLayout.LayoutParams(-1,dp(56),Gravity.TOP));
+        styleGallery = buildStyleGallery();
+        FrameLayout.LayoutParams gp=new FrameLayout.LayoutParams(-1,-1);gp.topMargin=dp(64);
+        root.addView(styleGallery,0,gp);
         setContentView(root);
-        showTab(0);
+        showTab(b == null ? 0 : b.getInt("editorTab", 0));
+        showGallery(b == null || b.getBoolean("galleryMode",true));
+        root.post(this::layoutEditor);
         maybeAutoSegment(false);
-    }
-
-    private HorizontalScrollView presetStrip() {
-        HorizontalScrollView scroller = new HorizontalScrollView(this);scroller.setHorizontalScrollBarEnabled(false);
-        LinearLayout row = new LinearLayout(this);
-        SavedLooks.Look source = new SavedLooks.Look("Preview",new SavedLooks(config).snapshot());
-        for (int i=0;i<PRESETS.length;i++) {
-            final int preset=i;
-            LinearLayout tile = new LinearLayout(this);tile.setOrientation(LinearLayout.VERTICAL);tile.setGravity(Gravity.CENTER);
-            tile.setPadding(dp(4),dp(4),dp(4),dp(4));
-            tile.setBackground(panel(i==config.clockPreset()?0xAA3A6486:0x33202E3D,dp(14)));
-            AuroraConfig miniatureConfig = SavedLooks.previewConfig(this,source);miniatureConfig.applyPreset(i);
-            AuroraSceneView miniature = new AuroraSceneView(this,true,miniatureConfig,256);
-            miniature.layout(0,0,104,208);
-            Bitmap bitmap=Bitmap.createBitmap(104,208,Bitmap.Config.ARGB_8888);miniature.draw(new Canvas(bitmap));miniature.releaseBitmaps();
-            ImageView image=new ImageView(this);image.setImageBitmap(bitmap);image.setScaleType(ImageView.ScaleType.FIT_CENTER);
-            tile.addView(image,new LinearLayout.LayoutParams(dp(32),dp(60)));
-            TextView name=label(PRESETS[i],10,0xFFE2EBF4,true);name.setGravity(Gravity.CENTER);name.setMaxLines(1);
-            tile.addView(name,new LinearLayout.LayoutParams(-1,dp(18)));
-            tile.setContentDescription("Choose " + PRESETS[i]);
-            tile.setOnClickListener(v -> {
-                config.applyPreset(preset);preview.animatePreset(preset);preview.reload();
-                for(int child=0;child<row.getChildCount();child++)row.getChildAt(child).setBackground(panel(child==preset?0xAA3A6486:0x33202E3D,dp(14)));
-                showTab(tab);
-            });
-            LinearLayout.LayoutParams layout=new LinearLayout.LayoutParams(dp(82),dp(88));layout.rightMargin=dp(8);layout.bottomMargin=dp(8);
-            row.addView(tile,layout);
-        }
-        scroller.addView(row);return scroller;
     }
 
     private LinearLayout tabBar() {
@@ -201,11 +211,12 @@ public final class AuroraSettingsActivity extends Activity {
         row.setPadding(0, 0, 0, dp(8));
         for (int i = 0; i < TABS.length; i++) {
             final int index = i;
-            TextView tabView = label(TABS[i], 11, Color.WHITE, true);
+            TextView tabView = label(TABS[i], 14, ink, true);
             tabView.setGravity(Gravity.CENTER);
-            tabView.setPadding(0, dp(8), 0, dp(8));
-            tabView.setBackground(panel(i == tab ? 0xAA2C4C6A : 0x33243344, dp(14)));
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, -2, 1f);
+            tabView.setPadding(dp(16), dp(8), dp(16), dp(8));
+            tabView.setMinHeight(dp(48));
+            tabView.setBackground(touchSurface(i == tab ? (dark ? 0xFF263A57 : 0xFFE1EBFF) : surface, dp(22)));
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, dp(48));
             lp.rightMargin = i == TABS.length - 1 ? 0 : dp(6);
             tabViews.add(tabView);
             tabView.setOnClickListener(v -> showTab(index));
@@ -216,20 +227,158 @@ public final class AuroraSettingsActivity extends Activity {
 
     private void showTab(int index) {
         tab = index;
-        for(int i=0;i<tabViews.size();i++)tabViews.get(i).setBackground(panel(i==index?0xAA3A6486:0x20243344,dp(16)));
+        for(int i=0;i<tabViews.size();i++) {
+            tabViews.get(i).setBackground(touchSurface(i==index?(dark?0xFF263A57:0xFFE1EBFF):surface,dp(22)));
+            tabViews.get(i).setTextColor(i==index?accent:muted);
+            tabViews.get(i).setSelected(i==index);
+        }
+        depthStatus = null;
+        controlsScroll.scrollTo(0,0);
+        tabViews.get(index).post(() -> categoryScroll.scrollTo(Math.max(0,tabViews.get(index).getLeft()-dp(12)),0));
         sheet.removeAllViews();
         if (index == 0) clockSheet();
         else if (index == 1) colourSheet();
         else if (index == 2) depthSheet();
         else if (index == 3) wallpaperSheet();
         else if (index == 4) effectsSheet();
-        else designsSheet();
+        else if(index==5) designsSheet();
+        else if(index==6) notificationsSheet();
+        else aboutSheet();
+        styleControls();
+    }
+
+    private final class PhonePreview extends ImageView {
+        private final android.graphics.Path shape=new android.graphics.Path();
+        PhonePreview() { super(AuroraSettingsActivity.this); }
+        @Override protected void onMeasure(int widthSpec,int heightSpec) {
+            int maxWidth=View.MeasureSpec.getSize(widthSpec),maxHeight=View.MeasureSpec.getSize(heightSpec);
+            int width=Math.max(1,Math.min(maxWidth,Math.round(maxHeight*240f/520f)));
+            setMeasuredDimension(width,Math.max(1,Math.min(maxHeight,Math.round(width*520f/240f))));
+        }
+        @Override public void draw(Canvas canvas) {
+            int save=canvas.save();shape.reset();
+            shape.addRoundRect(0,0,getWidth(),getHeight(),dp(30),dp(30),android.graphics.Path.Direction.CW);
+            canvas.clipPath(shape);super.draw(canvas);canvas.restoreToCount(save);
+        }
+    }
+
+    private LinearLayout buildStyleGallery() {
+        LinearLayout gallery=new LinearLayout(this);gallery.setOrientation(LinearLayout.VERTICAL);
+        boolean compactGallery=getResources().getConfiguration().orientation==android.content.res.Configuration.ORIENTATION_LANDSCAPE;
+        TextView heading=label("Choose your style",compactGallery?20:28,ink,true);heading.setGravity(Gravity.CENTER);
+        heading.setPadding(dp(16),dp(16),dp(16),dp(6));gallery.addView(heading);
+        TextView hint=label("Swipe to explore lock-screen styles",14,muted,false);hint.setGravity(Gravity.CENTER);
+        gallery.addView(hint,new LinearLayout.LayoutParams(-1,dp(32)));
+        if(compactGallery) hint.setVisibility(View.GONE);
+        HorizontalScrollView pages=new HorizontalScrollView(this);pages.setHorizontalScrollBarEnabled(false);
+        pages.setClipToPadding(false);
+        int width=getResources().getDisplayMetrics().widthPixels;
+        int tileWidth=Math.min(dp(360),Math.round(width*.72f));
+        pages.setPadding(Math.max(dp(20),(width-tileWidth)/2),dp(16),Math.max(dp(20),(width-tileWidth)/2),dp(16));
+        LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);
+        SavedLooks.Look source=new SavedLooks.Look("Preview",new SavedLooks(config).snapshot());
+        for(int i=0;i<PRESETS.length;i++) {
+            final int preset=i;
+            LinearLayout tile=new LinearLayout(this);tile.setOrientation(LinearLayout.VERTICAL);tile.setGravity(Gravity.CENTER);
+            TextView name=label(PRESETS[i],20,ink,true);name.setGravity(Gravity.CENTER);
+            name.setMaxLines(2);tile.addView(name,new LinearLayout.LayoutParams(-1,dp(compactGallery?32:56)));
+            ImageView image=new PhonePreview();image.setScaleType(ImageView.ScaleType.FIT_XY);
+            AuroraConfig miniature=SavedLooks.previewConfig(this,source);miniature.applyPreset(i);
+            AuroraSceneView drawing=new AuroraSceneView(this,true,miniature,512);
+            drawing.layout(0,0,240,520);
+            Bitmap bitmap=Bitmap.createBitmap(240,520,Bitmap.Config.ARGB_8888);
+            drawing.draw(new Canvas(bitmap));drawing.releaseBitmaps();image.setImageBitmap(bitmap);
+            image.setBackground(panel(dark?0xFF33353A:0xFFE3E5EB,dp(30)));
+            image.setPadding(dp(3),dp(3),dp(3),dp(3));image.setClipToOutline(true);
+            image.setOutlineProvider(new android.view.ViewOutlineProvider() {
+                @Override public void getOutline(View v,android.graphics.Outline o) {
+                    o.setRoundRect(0,0,v.getWidth(),v.getHeight(),dp(30));
+                }
+            });
+            image.setContentDescription("Preview "+PRESETS[i]);
+            View.OnClickListener customise=v -> {
+                if(config.clockPreset()!=preset) config.applyPreset(preset);preview.reload();
+                showGallery(false);showTab(0);
+            };
+            image.setOnClickListener(customise);
+            tile.addView(image,new LinearLayout.LayoutParams(-2,0,1));
+            Button customiseButton=action("Customize",customise);
+            customiseButton.setGravity(Gravity.CENTER);customiseButton.setContentDescription("Customize "+PRESETS[i]);
+            LinearLayout.LayoutParams bp=new LinearLayout.LayoutParams(-1,dp(52));bp.topMargin=dp(12);
+            tile.addView(customiseButton,bp);
+            LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(tileWidth,-1);lp.rightMargin=dp(20);
+            row.addView(tile,lp);
+        }
+        pages.setContentDescription("Lock-screen style gallery");
+        pages.setOnScrollChangeListener((v,x,y,oldX,oldY) -> {
+            int chosen=Math.max(0,Math.min(PRESETS.length-1,Math.round(x/(float)(tileWidth+dp(20)))));
+            if(chosen!=config.clockPreset()) {config.applyPreset(chosen);preview.reload();}
+        });
+        pages.addView(row,new FrameLayout.LayoutParams(-2,-1));
+        gallery.addView(pages,new LinearLayout.LayoutParams(-1,0,1));
+        TextView saved=label("My designs  ›",15,accent,true);saved.setGravity(Gravity.CENTER);saved.setMinHeight(dp(56));
+        saved.setOnClickListener(v -> {showGallery(false);showTab(5);});gallery.addView(saved);
+        pages.post(() -> pages.scrollTo(config.clockPreset()*(tileWidth+dp(20)),0));
+        return gallery;
+    }
+
+    private void showGallery(boolean show) {
+        if(show && !galleryMode) {
+            editorRoot.removeView(styleGallery);
+            styleGallery=buildStyleGallery();
+            FrameLayout.LayoutParams gp=new FrameLayout.LayoutParams(-1,-1);gp.topMargin=dp(64);
+            editorRoot.addView(styleGallery,0,gp);
+        }
+        galleryMode=show;
+        styleGallery.setVisibility(show?View.VISIBLE:View.GONE);
+        chrome.setVisibility(show?View.GONE:View.VISIBLE);
+        wallpaperHost.setVisibility(show?View.GONE:View.VISIBLE);
+        toolbarTitle.setText(show?"Lock screen":"‹  Styles");
+        layoutEditor();
+    }
+
+    @Override public void onBackPressed() {
+        if(!galleryMode) showGallery(true); else super.onBackPressed();
+    }
+
+    private void layoutEditor() {
+        if (editorRoot == null || editorRoot.getHeight() <= 0) return;
+        int h = editorRoot.getHeight() - editorRoot.getPaddingTop() - editorRoot.getPaddingBottom();
+        int w = editorRoot.getWidth() - editorRoot.getPaddingLeft() - editorRoot.getPaddingRight();
+        // Compact and landscape windows need a full-height controls page to remain usable.
+        boolean compact = h < dp(560) || w > h;
+        int sheetHeight = compact ? Math.max(dp(180),h-dp(64))
+                : Math.round((h-dp(60))*(expanded?.72f:.48f));
+        FrameLayout.LayoutParams cp=(FrameLayout.LayoutParams)chrome.getLayoutParams();
+        if(cp.height!=sheetHeight) { cp.height=sheetHeight;chrome.setLayoutParams(cp); }
+        int previewHeight=Math.max(1,h-sheetHeight-dp(82));
+        FrameLayout.LayoutParams pp=(FrameLayout.LayoutParams)wallpaperHost.getLayoutParams();
+        int pw=Math.min(w-dp(56),Math.round(previewHeight*w/(float)Math.max(1,h)));
+        if(pp.height!=previewHeight||pp.width!=pw||pp.topMargin!=dp(68)) {
+            pp.width=Math.max(1,pw);pp.height=previewHeight;pp.topMargin=dp(68);wallpaperHost.setLayoutParams(pp);
+        }
+        wallpaperHost.setVisibility(compact||galleryMode?View.GONE:View.VISIBLE);
+        sheetHandle.setText(expanded?"⌄  Show preview":"⌃  All controls");
+        sheetHandle.setContentDescription(expanded?"Collapse editor controls":"Expand editor controls");
+        sheetHandle.setVisibility(compact?View.GONE:View.VISIBLE);
+    }
+
+    private void styleControls() {
+        for(int i=0;i<sheet.getChildCount();i++) {
+            View child=sheet.getChildAt(i);
+            LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);
+            lp.bottomMargin=dp(8);child.setLayoutParams(lp);
+            if(child instanceof Button || child instanceof Switch) child.setMinimumHeight(dp(56));
+            else if(child instanceof LinearLayout) {
+                child.setBackground(panel(card,dp(22)));child.setPadding(dp(16),dp(14),dp(16),dp(14));
+            }
+        }
     }
 
     private void clockSheet() {
-        sheet.addView(action("Custom signature (个性签名)", v -> {
+        sheet.addView(action("Custom signature", v -> {
             EditText input = new EditText(this); input.setSingleLine(true); input.setText(config.signature());
-            new AlertDialog.Builder(this).setTitle("Signature / 个性签名").setView(input)
+            new AlertDialog.Builder(this).setTitle("Signature").setView(input)
                     .setPositiveButton("Apply", (dialog, which) -> {
                         String sig = input.getText().toString().trim();
                         config.prefs().edit().putString("signature", sig).putBoolean("showSignature", true).apply();
@@ -342,7 +491,7 @@ public final class AuroraSettingsActivity extends Activity {
         sheet.addView(toggle("Poster outline above subject", config.outlineOverSubject(), on -> {
             config.prefs().edit().putBoolean("outlineOverSubject", on).apply(); preview.reload();
         }));
-        depthStatus = label(statusText(), 13, 0xFFE3EEF8, false);
+        depthStatus = label(statusText(), 13, muted, false);
         depthStatus.setPadding(0, 0, 0, dp(8));
         sheet.addView(depthStatus);
         sheet.addView(toggle("Automatic depth", config.depthEnabled(), c -> {
@@ -394,7 +543,7 @@ public final class AuroraSettingsActivity extends Activity {
         sheet.addView(info(AuroraWakeService.enabledInSystem(this)
                 ? "Automatic wake access is enabled. " + config.prefs().getString("autoWakeStatus", "Lock the phone, then wake it to test.")
                 : "One-time setup: enable Aurora automatic lock screen in Accessibility. Screen contents are not read. Tap Apply after setup."));
-        sheet.addView(notificationDisplayCards());
+        sheet.addView(action("Notification display",v -> showTab(6)));
         sheet.addView(toggle("Music controls", config.showMedia(), on ->
                 config.prefs().edit().putBoolean("showMedia", on).apply()));
         sheet.addView(toggle("Battery and next alarm", config.statusWidgets(), on ->
@@ -408,21 +557,28 @@ public final class AuroraSettingsActivity extends Activity {
                 config.prefs().edit().putInt("leftShortcut", i).apply()));
         sheet.addView(choiceRow("Right shortcut", shortcuts, config.rightShortcut(), i ->
                 config.prefs().edit().putInt("rightShortcut", i).apply()));
-        sheet.addView(info("Tap a notification to open it after unlock. Swipe a dismissible card sideways, tap its × button, or use Clear all. List shows cards, Stack shows one card, and Count hides cards until expanded. Tap the count to expand. Music controls appear for active playback, stay for 30 seconds after a pause, and hide when stopped. Notification access is required."));
-        sheet.addView(toggle("Show live notifications", config.showNotifications(), c ->
-                config.prefs().edit().putBoolean("showNotifications", c).apply()));
-        sheet.addView(toggle("Hide content until unlock", config.hideNotificationContent(), c ->
-                config.prefs().edit().putBoolean("hideNotificationContent", c).apply()));
-        sheet.addView(action("Notification access", v ->
-                startActivity(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))));
-        sheet.addView(info("Samsung PIN, fingerprint and face unlock stay in control. Aurora cannot replace Keyguard or appear on every wake without system privileges."));
         sheet.addView(action("Reset all", v -> {
             config.resetAll();
             preview.reload();
             Toast.makeText(this, "Editor restored", Toast.LENGTH_SHORT).show();
             showTab(4);
         }));
-        updateStatus = label("Installed " + BuildConfig.VERSION_NAME + " (" + BuildConfig.VERSION_CODE + ")", 13, Color.WHITE, false);
+    }
+
+    private void notificationsSheet() {
+        sheet.addView(notificationDisplayCards());
+        sheet.addView(info("Swipe up to browse a stack. Swipe sideways to dismiss a notification, or tap to open it after unlocking."));
+        sheet.addView(toggle("Show live notifications", config.showNotifications(), c ->
+                config.prefs().edit().putBoolean("showNotifications", c).apply()));
+        sheet.addView(toggle("Hide content until unlock", config.hideNotificationContent(), c ->
+                config.prefs().edit().putBoolean("hideNotificationContent", c).apply()));
+        sheet.addView(action("Notification access", v ->
+                startActivity(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))));
+        sheet.addView(info("Samsung PIN, fingerprint and face unlock stay in control. Automatic wake is optional and uses the access you enable in Accessibility."));
+    }
+
+    private void aboutSheet() {
+        updateStatus = label("Installed " + BuildConfig.VERSION_NAME + " (" + BuildConfig.VERSION_CODE + ")", 13, muted, false);
         sheet.addView(updateStatus);
         sheet.addView(action("Check for updates", v -> checkUpdates()));
         downloadButton = action("Download update", v -> downloadUpdate());
@@ -454,7 +610,7 @@ public final class AuroraSettingsActivity extends Activity {
         LinearLayout row = new LinearLayout(this);
         for (SavedLooks.Look look : store.list()) {
             LinearLayout tile = new LinearLayout(this); tile.setOrientation(LinearLayout.VERTICAL);
-            tile.addView(label(look.name, 12, Color.WHITE, true));
+            tile.addView(label(look.name, 14, ink, true));
             AuroraSceneView miniature = new AuroraSceneView(this, true, SavedLooks.previewConfig(this, look));
             miniature.layout(0, 0, 240, 520);
             Bitmap bitmap = Bitmap.createBitmap(240, 520, Bitmap.Config.ARGB_8888);
@@ -526,12 +682,20 @@ public final class AuroraSettingsActivity extends Activity {
     private LinearLayout slider(String name, int value, int max, ProgressListener listener) {
         LinearLayout box = new LinearLayout(this);
         box.setOrientation(LinearLayout.VERTICAL);
-        box.addView(label(name, 12, 0xFFD5E6F8, false));
+        LinearLayout heading=new LinearLayout(this);heading.setGravity(Gravity.CENTER_VERTICAL);
+        heading.addView(label(name,15,ink,true),new LinearLayout.LayoutParams(0,-2,1));
+        TextView reading=label(String.valueOf(value),13,muted,false);heading.addView(reading);
+        box.addView(heading);
         SeekBar bar = new SeekBar(this);
+        bar.setMinimumHeight(dp(48));
+        bar.setProgressTintList(android.content.res.ColorStateList.valueOf(accent));
+        bar.setThumbTintList(android.content.res.ColorStateList.valueOf(accent));
+        bar.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(dark?0xFF41444D:0xFFE5E7EC));
+        bar.setContentDescription(name);
         bar.setMax(max);
         bar.setProgress(Math.max(0, Math.min(max, value)));
         bar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            public void onProgressChanged(SeekBar s, int progress, boolean user) { if (user) listener.on(progress); }
+            public void onProgressChanged(SeekBar s, int progress, boolean user) { if (user) { reading.setText(String.valueOf(progress)); listener.on(progress); } }
             public void onStartTrackingTouch(SeekBar s) {}
             public void onStopTrackingTouch(SeekBar s) {}
         });
@@ -542,9 +706,16 @@ public final class AuroraSettingsActivity extends Activity {
     private Switch toggle(String name, boolean on, ToggleListener listener) {
         Switch view = new Switch(this);
         view.setText(name);
-        view.setTextColor(Color.WHITE);
+        view.setTextColor(ink);
+        view.setTextSize(15);
+        view.setSwitchMinWidth(dp(48));
+        view.setTrackTintList(new android.content.res.ColorStateList(
+                new int[][]{new int[]{android.R.attr.state_checked},new int[]{}},
+                new int[]{accent,dark?0xFF484B55:0xFFD9DCE3}));
+        view.setThumbTintList(android.content.res.ColorStateList.valueOf(Color.WHITE));
         view.setChecked(on);
-        view.setPadding(0, dp(6), 0, dp(6));
+        view.setBackground(touchSurface(card,dp(22)));
+        view.setPadding(dp(16), dp(12), dp(16), dp(12));
         view.setOnCheckedChangeListener((v, c) -> listener.on(c));
         return view;
     }
@@ -554,7 +725,7 @@ public final class AuroraSettingsActivity extends Activity {
         container.setOrientation(LinearLayout.VERTICAL);
         container.setPadding(0, dp(4), 0, dp(10));
 
-        TextView heading = label("Notification display (锁屏通知样式)", 12, 0xFFD5E6F8, false);
+        TextView heading = label("Notification display", 15, ink, true);
         heading.setPadding(0, 0, 0, dp(8));
         container.addView(heading);
 
@@ -572,9 +743,9 @@ public final class AuroraSettingsActivity extends Activity {
             boolean selected = (current == mode);
 
             GradientDrawable bg = new GradientDrawable();
-            bg.setColor(selected ? 0x44007AFF : 0x22FFFFFF);
+            bg.setColor(selected ? (dark?0xFF263A57:0xFFE1EBFF) : surface);
             bg.setCornerRadius(dp(16));
-            bg.setStroke(dp(selected ? 2 : 1), selected ? 0xFF007AFF : 0x33FFFFFF);
+            bg.setStroke(dp(selected ? 2 : 1), selected ? accent : (dark?0xFF484B55:0xFFD9DCE3));
             card.setBackground(bg);
 
             FrameLayout phone = new FrameLayout(this);
@@ -610,10 +781,12 @@ public final class AuroraSettingsActivity extends Activity {
             phone.addView(glyph, new FrameLayout.LayoutParams(-2, -2, Gravity.CENTER));
             card.addView(phone, new LinearLayout.LayoutParams(dp(44), dp(54)));
 
-            TextView labelView = label(titles[mode], 12, selected ? 0xFF64B5F6 : 0xCCFFFFFF, true);
+            TextView labelView = label(titles[mode], 12, selected ? accent : ink, true);
             labelView.setPadding(0, dp(6), 0, 0);
             card.addView(labelView);
 
+            card.setSelected(selected);
+            card.setContentDescription(titles[mode]+" notification display");
             card.setOnClickListener(v -> {
                 config.prefs().edit().putInt("notificationMode", mode).apply();
                 showTab(tab);
@@ -630,20 +803,28 @@ public final class AuroraSettingsActivity extends Activity {
     private LinearLayout choiceRow(String title, String[] names, int selected, ChoiceListener listener) {
         LinearLayout box = new LinearLayout(this);
         box.setOrientation(LinearLayout.VERTICAL);
-        box.addView(label(title, 12, 0xFFD5E6F8, false));
+        box.addView(label(title, 15, ink, true));
         HorizontalScrollView scroller = new HorizontalScrollView(this);
+        scroller.setHorizontalScrollBarEnabled(false);
+        scroller.setPadding(0,dp(12),0,0);
         LinearLayout row = new LinearLayout(this);
         for (int i = 0; i < names.length; i++) {
             final int index = i;
-            TextView chip = label(names[i], 12, Color.WHITE, false);
-            chip.setPadding(dp(12), dp(8), dp(12), dp(8));
-            chip.setBackground(panel(i == selected ? 0xCC3A6D99 : 0x55304458, dp(14)));
+            TextView chip = label(names[i], 14, i == selected ? accent : ink, true);
+            chip.setPadding(dp(16), dp(12), dp(16), dp(12));
+            chip.setMinHeight(dp(48));
+            chip.setGravity(Gravity.CENTER);
+            chip.setSelected(i==selected);
+            chip.setBackground(touchSurface(i == selected ? (dark?0xFF263A57:0xFFE1EBFF) : surface, dp(18)));
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, -2);
             lp.rightMargin = dp(8);
             chip.setOnClickListener(v -> {
                 listener.on(index);
-                for (int child = 0; child < row.getChildCount(); child++)
-                    row.getChildAt(child).setBackground(panel(child == index ? 0xCC3A6D99 : 0x55304458, dp(14)));
+                for (int child = 0; child < row.getChildCount(); child++) {
+                    TextView option=(TextView)row.getChildAt(child);
+                    option.setBackground(touchSurface(child==index?(dark?0xFF263A57:0xFFE1EBFF):surface,dp(18)));
+                    option.setTextColor(child==index?accent:ink);option.setSelected(child==index);
+                }
             });
             row.addView(chip, lp);
         }
@@ -656,17 +837,23 @@ public final class AuroraSettingsActivity extends Activity {
         Button button = new Button(this);
         button.setText(name);
         button.setAllCaps(false);
-        button.setTextColor(Color.WHITE);
-        button.setBackground(panel(0xAA2A4A66, dp(16)));
+        button.setTextColor(ink);
+        button.setTextSize(15);
+        button.setGravity(Gravity.START|Gravity.CENTER_VERTICAL);
+        button.setPadding(dp(16),0,dp(16),0);
+        button.setMinHeight(dp(56));
+        button.setElevation(0);button.setStateListAnimator(null);
+        button.setBackground(touchSurface(card, dp(22)));
         button.setOnClickListener(listener);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, dp(44));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, dp(56));
         lp.topMargin = dp(6);
         button.setLayoutParams(lp);
         return button;
     }
 
     private TextView info(String text) {
-        TextView v = label(text, 12, 0xBBD0DCEC, false);
+        TextView v = label(text, 13, muted, false);
+        v.setLineSpacing(dp(3),1f);
         v.setPadding(0, dp(8), 0, dp(8));
         return v;
     }
@@ -684,8 +871,13 @@ public final class AuroraSettingsActivity extends Activity {
         GradientDrawable d = new GradientDrawable();
         d.setColor(color);
         d.setCornerRadius(radius);
-        d.setStroke(dp(1), 0x33FFFFFF);
+        d.setStroke(dp(1), dark?0x1AFFFFFF:0x09000000);
         return d;
+    }
+
+    private android.graphics.drawable.Drawable touchSurface(int color,int radius) {
+        return new android.graphics.drawable.RippleDrawable(android.content.res.ColorStateList.valueOf(
+                dark?0x22FFFFFF:0x16000000),panel(color,radius),panel(Color.WHITE,radius));
     }
 
     private int dp(int n) {
@@ -804,7 +996,8 @@ public final class AuroraSettingsActivity extends Activity {
         finish();
     }
     @Override protected void onSaveInstanceState(Bundle state) {
-        state.putBoolean("restoreDraft",true);super.onSaveInstanceState(state);
+        state.putBoolean("restoreDraft",true);state.putBoolean("expandedControls",expanded);
+        state.putInt("editorTab",tab);state.putBoolean("galleryMode",galleryMode);super.onSaveInstanceState(state);
     }
 
     @Override protected void onResume() {
