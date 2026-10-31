@@ -22,3 +22,14 @@ This branch repurposes HyperLauncher-Samsung as a standalone Android lock-screen
 
 ## Reference materials
 Xiaomi Theme Manager and MIUI AOD APKs are for architecture study only. Do not redistribute proprietary binaries, fonts or code.
+
+## Built-in updater (settings app)
+- Add Settings > About > Check for updates, current version, release notes, and update channel.
+- Check a dedicated GitHub Releases feed for signed APK releases (not untrusted arbitrary URLs).
+- Compare versionCode and signing certificate before offering an update.
+- Download over HTTPS with progress, checksum verification, and clear confirmation.
+- Use Android PackageInstaller to hand off installation to the system; request install-unknown-apps permission only when necessary.
+- Never silently install, bypass Android confirmation, or require root/Shizuku for updates.
+- Support manual check and optional periodic checks, respecting Android background execution limits.
+- On failure, preserve the installed version and display an actionable error.
+- Publish release APKs through GitHub Actions with a stable signing key held securely; debug APKs are not an upgrade channel.
