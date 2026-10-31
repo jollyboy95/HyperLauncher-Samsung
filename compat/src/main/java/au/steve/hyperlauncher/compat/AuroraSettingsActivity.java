@@ -191,7 +191,7 @@ public final class AuroraSettingsActivity extends Activity {
                                 break;
                             }
                         }
-                        result=apkUrl==null?"New release "+tag+" found, but no APK is attached.":"Update available: "+tag+"\n"+release.optString("body","")+"\nTap Download & install.";
+                        result=apkUrl==null?"New release "+tag+" found, but no APK is attached.":"Update available: "+tag+"\\n"+release.optString("body","")+"\\nTap Download & install.";
                     }
                 }
                 c.disconnect();
