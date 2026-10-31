@@ -59,7 +59,7 @@ public final class AuroraActivity extends Activity {
         int pad = (int)(24 * getResources().getDisplayMetrics().density);
         content.setPadding(pad, (int)(92 * getResources().getDisplayMetrics().density), pad, pad);
         TextView heading = new TextView(this);
-        heading.setText("SATURDAY  /  AURORA");
+        heading.setText(new SimpleDateFormat("EEEE", Locale.getDefault()).format(new Date()).toUpperCase(Locale.getDefault()) + "  /  AURORA");
         heading.setTextColor(0xFFC1D9FF);
         heading.setTextSize(11);
         heading.setLetterSpacing(0.24f);
