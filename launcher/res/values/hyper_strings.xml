@@ -1,6 +1,20 @@
 <resources>
     <string name="hyper_clock_name">Hyper Clock</string>
-    <string name="hyper_clock_description">Clock and date. Tap to open alarms.</string>
+    <string name="hyper_clock_description">Clock and date. Tap to open alarms; use the gear to change the card style.</string>
+    <string name="hyper_clock_style">Clock style</string>
+    <string name="hyper_clock_settings_title">Hyper Clock</string>
+    <string name="hyper_clock_settings_subtitle">Live preview, layout and typography for every clock card</string>
+    <string name="hyper_clock_preview">LIVE PREVIEW</string>
+    <string name="hyper_clock_style_section">CARD STYLE</string>
+    <string name="hyper_clock_style_stacked">Stacked</string>
+    <string name="hyper_clock_style_stacked_detail">Light left-aligned time with a compact date</string>
+    <string name="hyper_clock_style_centered">Centred</string>
+    <string name="hyper_clock_style_centered_detail">Thin centred time with a spaced uppercase date</string>
+    <string name="hyper_clock_style_mono">Mono</string>
+    <string name="hyper_clock_style_mono_detail">Monospaced numerals with a technical date stamp</string>
+    <string name="hyper_clock_show_date">Show the date</string>
+    <string name="hyper_clock_open_alarms">Open alarms</string>
+    <string name="hyper_clock_note">Tap the clock itself to open alarms. Use the small gear on any clock card to return here. Changes refresh every clock card already on the home screen.</string>
     <string name="hyper_battery_name">Hyper Battery</string>
     <string name="hyper_battery_description">Battery snapshot, refreshed periodically and when power is connected.</string>
     <string name="hyper_battery_title">BATTERY</string>
@@ -35,6 +49,8 @@
     <string name="hyper_settings_wallpaper_detail">Original gradients and the system wallpaper picker</string>
     <string name="hyper_settings_weather_title">Weather</string>
     <string name="hyper_settings_weather_detail">Choose the city shown by the Hyper Weather widget</string>
+    <string name="hyper_settings_clock_title">Clock &amp; widgets</string>
+    <string name="hyper_settings_clock_detail">Clock layout, typography and live preview</string>
     <string name="hyper_settings_home_title">Home screen layout</string>
     <string name="hyper_settings_home_detail">Grid, icon size and labels</string>
     <string name="hyper_settings_icons_title">Icons &amp; appearance</string>

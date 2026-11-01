@@ -6,6 +6,7 @@
     <application>
         <activity android:name="au.steve.hyperlauncher.settings.HyperSettingsActivity" android:exported="false" android:label="@string/hyper_settings_title" android:theme="@android:style/Theme.Material.Light.NoActionBar" />
         <activity android:name="au.steve.hyperlauncher.wallpaper.HyperWallpaperActivity" android:exported="false" android:label="@string/hyper_wallpaper_title" android:theme="@android:style/Theme.Material.Light.NoActionBar" />
+        <activity android:name="au.steve.hyperlauncher.clock.HyperClockActivity" android:exported="false" android:label="@string/hyper_clock_settings_title" android:theme="@android:style/Theme.Material.Light.NoActionBar" />
         <activity android:name="au.steve.hyperlauncher.weather.HyperWeatherActivity" android:exported="false" android:label="@string/hyper_weather_settings_title" android:theme="@android:style/Theme.Material.Light.NoActionBar" />
 
         <receiver android:name="au.steve.hyperlauncher.widgets.HyperClockWidget" android:exported="false" android:label="@string/hyper_clock_name">

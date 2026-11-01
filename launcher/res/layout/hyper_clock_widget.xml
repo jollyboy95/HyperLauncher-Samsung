@@ -1,13 +1,46 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Original HyperLauncher widget. SPDX-License-Identifier: Apache-2.0 -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/hyper_clock_root" android:layout_width="match_parent" android:layout_height="124dp"
-    android:orientation="vertical" android:gravity="center_vertical" android:padding="16dp"
     android:background="@drawable/hyper_widget_background">
-    <TextClock android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:format12Hour="h:mm" android:format24Hour="HH:mm" android:textSize="56sp"
-        android:fontFamily="sans-serif-light" android:textColor="#FFFFFFFF" android:maxLines="1" />
-    <TextClock android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:format12Hour="EEE, d MMM" android:format24Hour="EEE, d MMM"
-        android:textSize="15sp" android:textColor="#FFCAD2E0" android:maxLines="1" />
-</LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center_vertical"
+        android:padding="16dp">
+
+        <TextClock
+            android:id="@+id/hyper_clock_time"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:format12Hour="h:mm"
+            android:format24Hour="HH:mm"
+            android:textSize="56sp"
+            android:fontFamily="sans-serif-light"
+            android:textColor="#FFFFFFFF"
+            android:maxLines="1" />
+
+        <TextClock
+            android:id="@+id/hyper_clock_date"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:format12Hour="EEE, d MMM"
+            android:format24Hour="EEE, d MMM"
+            android:textSize="15sp"
+            android:textColor="#FFCAD2E0"
+            android:maxLines="1" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/hyper_clock_settings"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|end"
+        android:padding="12dp"
+        android:text="⚙"
+        android:textSize="16sp"
+        android:textColor="#99FFFFFF"
+        android:contentDescription="@string/hyper_clock_style" />
+</FrameLayout>

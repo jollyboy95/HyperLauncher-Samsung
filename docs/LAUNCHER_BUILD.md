@@ -10,13 +10,13 @@ Base: Lawnchair 15-dev, pinned at 505dbc40e6154c05158b5d0271c45f6a885a411b, with
 - App label: HyperLauncher Preview; custom H icon.
 - Default 5-column, 6-row workspace, four-icon dock, squircle icon masks, translucent dock background, no dock search bar, no automatic newly-installed app shortcuts.
 - Inherited app drawer, folders, search, icon pack support and standard Android widget binding, configuration, resize and persistence.
-- Original Hyper Clock widget (time/date, taps open alarms).
+- Original Hyper Clock widget with three card styles (Stacked, Centred, Mono), a date toggle, a live in-app preview and a gear shortcut on every card. Tapping the clock opens alarms.
 - Original Hyper Battery widget (snapshot, 30-minute platform schedule plus power connection changes). Battery percentage is not continuously live; Android controls update timing.
 - Original Hyper Weather widget with current conditions and today's high/low. City search, Celsius/Fahrenheit and cached offline readings use the free Open-Meteo API (CC BY 4.0); no API key, account or root access is needed.
 - Original Wallpaper & style studio. Six on-device gradient wallpapers are rendered at screen resolution, with optional lock-screen application and a shortcut to the system wallpaper picker. No downloaded artwork is bundled.
 - Fresh 5x6 installs place Hyper Clock (5x2) and Hyper Battery (2x2) on the first home screen. Existing databases are never rewritten. The weather card is added from the widget picker after a city is chosen.
 - Wallpaper-derived accent colour by default, translucent white folder surface, single-line app-drawer labels, hidden drawer scrollbar and wider drawer margins.
-- Animated, card-based Hyper settings hub with working links to home layout, icons, drawer, folders, dock, gestures, backup/restore, wallpapers and weather.
+- Animated, card-based Hyper settings hub with working links to home layout, icons, drawer, folders, dock, gestures, backup/restore, wallpapers, weather and clock styling.
 - No Xiaomi runtime, root or Shizuku required for the intended normal launcher flow.
 
 These are implemented source changes and inherited capabilities. Actual Samsung behavior still requires testing. Samsung retains system Recents and system app-transition integration; QuickSwitch/root integration is not a requirement for this project.

@@ -20,6 +20,7 @@ import app.lawnchair.ui.preferences.PreferenceActivity;
 import app.lawnchair.ui.preferences.navigation.*;
 import com.android.launcher3.R;
 
+import au.steve.hyperlauncher.clock.HyperClockActivity;
 import au.steve.hyperlauncher.wallpaper.HyperWallpaperActivity;
 import au.steve.hyperlauncher.weather.HyperWeatherActivity;
 
@@ -68,6 +69,8 @@ public class HyperSettingsActivity extends Activity {
                 () -> open(new Intent(this, HyperWallpaperActivity.class)));
         row(R.string.hyper_settings_weather_title, R.string.hyper_settings_weather_detail, AMBER,
                 () -> open(new Intent(this, HyperWeatherActivity.class)));
+        row(R.string.hyper_settings_clock_title, R.string.hyper_settings_clock_detail, ACCENT,
+                () -> open(new Intent(this, HyperClockActivity.class)));
         row(R.string.hyper_settings_home_title, R.string.hyper_settings_home_detail, ACCENT,
                 () -> openPreference(HomeScreen.INSTANCE));
         row(R.string.hyper_settings_icons_title, R.string.hyper_settings_icons_detail, VIOLET,
