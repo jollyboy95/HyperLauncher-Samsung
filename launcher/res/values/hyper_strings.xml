@@ -92,6 +92,8 @@
     <string name="hyper_weather_error">Could not reach Open-Meteo. Check your connection.</string>
     <string name="hyper_weather_enter_city">Enter a city name first</string>
     <string name="hyper_weather_saved">Weather city saved</string>
+    <string name="hyper_weather_use_current">Use the saved city</string>
+    <string name="hyper_weather_choose_city">Choose a city for this widget</string>
     <string name="hyper_weather_fahrenheit">Show Fahrenheit</string>
     <string name="hyper_weather_data_note">Weather and city search by Open-Meteo, licensed CC BY 4.0. No API key is required.</string>
     <string name="hyper_weather_current_city">Current: %1$s</string>

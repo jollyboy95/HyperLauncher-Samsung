@@ -12,7 +12,7 @@ Base: Lawnchair 15-dev, pinned at 505dbc40e6154c05158b5d0271c45f6a885a411b, with
 - Inherited app drawer, folders, search, icon pack support and standard Android widget binding, configuration, resize and persistence.
 - Original Hyper Clock widget with three card styles (Stacked, Centred, Mono), a date toggle, a live in-app preview and a gear shortcut on every card. Tapping the clock opens alarms.
 - Original Hyper Battery widget (snapshot, 30-minute platform schedule plus power connection changes). Battery percentage is not continuously live; Android controls update timing.
-- Original Hyper Weather widget with current conditions and today's high/low. City search, Celsius/Fahrenheit and cached offline readings use the free Open-Meteo API (CC BY 4.0); no API key, account or root access is needed.
+- Original Hyper Weather widget with current conditions and today's high/low. City search, Celsius/Fahrenheit and cached offline readings use the free Open-Meteo API (CC BY 4.0); no API key, account or root access is needed. Adding the card opens a city chooser, and the saved city can be reused for later cards.
 - Original Wallpaper & style studio. Six on-device gradient wallpapers are rendered at screen resolution, with optional lock-screen application and a shortcut to the system wallpaper picker. No downloaded artwork is bundled.
 - Fresh 5x6 installs place Hyper Clock (5x2) and Hyper Battery (2x2) on the first home screen. Existing databases are never rewritten. The weather card is added from the widget picker after a city is chosen.
 - Wallpaper-derived accent colour by default, translucent white folder surface, single-line app-drawer labels, hidden drawer scrollbar and wider drawer margins.
@@ -42,7 +42,7 @@ Toolchain: JDK 21, upstream Gradle wrapper, Android platform 36.1 and build tool
 
 ## Phone validation after a successful build
 
-Keep Nova installed. Open HyperLauncher Preview and choose it as Home only when ready. Test app launch/drawer, create a folder, add a standard widget requiring configuration, resize it, and verify it survives restarting the launcher. Check the fresh-install Hyper Clock and Hyper Battery cards, add Hyper Weather from the widget picker, choose a city in Settings → Weather and wait for a reading. Apply a wallpaper from Settings → Wallpaper & style. Test gesture navigation through Samsung's Recents. A failed flow should include its exact action and screenshot or logcat.
+Keep Nova installed. Open HyperLauncher Preview and choose it as Home only when ready. Test app launch/drawer, create a folder, add a standard widget requiring configuration, resize it, and verify it survives restarting the launcher. Check the fresh-install Hyper Clock and Hyper Battery cards, add Hyper Weather from the widget picker and choose a city in the place-time chooser (or later in Settings → Weather), then wait for a reading. Apply a wallpaper from Settings → Wallpaper & style. Test gesture navigation through Samsung's Recents. A failed flow should include its exact action and screenshot or logcat.
 
 ## Home screen and settings follow-up
 

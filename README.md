@@ -7,7 +7,7 @@ Project to investigate adapting Xiaomi's latest selected HyperOS launcher to a s
 The `feature/hyperos4-integration` branch builds an independent HyperOS 4-inspired home app from the open-source Lawnchair launcher (Apache-2.0). It does not include or execute Xiaomi binaries and needs no root or Shizuku.
 
 - 5-column, 6-row workspace with a four-app dock, squircle icons and wallpaper-derived accent colour.
-- Original Hyper Clock, Hyper Battery and Hyper Weather widgets. Clock offers Stacked, Centred and Mono card styles with a live preview and date toggle. Weather uses the free Open-Meteo API (CC BY 4.0), supports city search and Celsius/Fahrenheit, and caches its last reading offline.
+- Original Hyper Clock, Hyper Battery and Hyper Weather widgets. Clock offers Stacked, Centred and Mono card styles with a live preview and date toggle. Weather uses the free Open-Meteo API (CC BY 4.0), supports city search and Celsius/Fahrenheit, asks for a city when placed, and caches its last reading offline.
 - Fresh installs place Hyper Clock and Hyper Battery on the first home screen.
 - Wallpaper & style studio with six locally rendered gradients, optional lock-screen application and a system-picker shortcut.
 - Animated card settings hub linking to working home, icon, drawer, folder, dock, gesture, clock, weather, wallpaper and backup preferences.

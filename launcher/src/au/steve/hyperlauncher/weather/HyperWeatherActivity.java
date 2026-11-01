@@ -2,6 +2,8 @@
 package au.steve.hyperlauncher.weather;
 
 import android.app.Activity;
+import android.appwidget.AppWidgetManager;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
@@ -46,6 +48,8 @@ public final class HyperWeatherActivity extends Activity {
     private LinearLayout results;
     private Button search;
     private EditText query;
+    private int appWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID;
+    private boolean configuring;
 
     private int dp(int value) {
         return Math.round(value * getResources().getDisplayMetrics().density);
@@ -54,6 +58,14 @@ public final class HyperWeatherActivity extends Activity {
     @Override
     public void onCreate(Bundle state) {
         super.onCreate(state);
+        Intent intent = getIntent();
+        if (intent != null && intent.hasExtra(AppWidgetManager.EXTRA_APPWIDGET_ID)) {
+            appWidgetId = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID,
+                    AppWidgetManager.INVALID_APPWIDGET_ID);
+        }
+        configuring = appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID;
+        // A widget host only commits the placement when this activity returns RESULT_OK.
+        if (configuring) setResult(RESULT_CANCELED);
         getWindow().setStatusBarColor(Color.rgb(245, 246, 248));
         getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
 
@@ -80,7 +92,9 @@ public final class HyperWeatherActivity extends Activity {
         content.addView(title);
 
         TextView subtitle = new TextView(this);
-        subtitle.setText(R.string.hyper_weather_settings_subtitle);
+        subtitle.setText(configuring
+                ? R.string.hyper_weather_choose_city
+                : R.string.hyper_weather_settings_subtitle);
         subtitle.setTextSize(14);
         subtitle.setTextColor(MUTED);
         subtitle.setPadding(0, dp(6), 0, dp(20));
@@ -117,8 +131,22 @@ public final class HyperWeatherActivity extends Activity {
         search.setOnClickListener(v -> beginSearch());
         searchRow.addView(search, new LinearLayout.LayoutParams(-2, -2));
 
-        CheckBox fahrenheit = new CheckBox(this);
         SharedPreferences prefs = getSharedPreferences(HyperWeatherWidget.PREFS, MODE_PRIVATE);
+        String savedCity = prefs.getString(HyperWeatherWidget.KEY_CITY, "");
+        if (configuring && savedCity != null && !savedCity.isEmpty()) {
+            Button useSaved = new Button(this);
+            useSaved.setText(R.string.hyper_weather_use_current);
+            useSaved.setAllCaps(false);
+            useSaved.setTextColor(ACCENT);
+            useSaved.setBackground(rounded(0xFFEAF1FF, 18, 0, 0));
+            useSaved.setPadding(dp(16), dp(11), dp(16), dp(11));
+            useSaved.setOnClickListener(v -> finishWithResult());
+            LinearLayout.LayoutParams savedParams = new LinearLayout.LayoutParams(-1, -2);
+            savedParams.topMargin = dp(12);
+            content.addView(useSaved, savedParams);
+        }
+
+        CheckBox fahrenheit = new CheckBox(this);
         fahrenheit.setText(R.string.hyper_weather_fahrenheit);
         fahrenheit.setTextColor(INK);
         fahrenheit.setChecked(prefs.getBoolean(HyperWeatherWidget.KEY_FAHRENHEIT, false));
@@ -240,6 +268,16 @@ public final class HyperWeatherActivity extends Activity {
                 .apply();
         HyperWeatherWidget.requestUpdate(this);
         Toast.makeText(this, R.string.hyper_weather_saved, Toast.LENGTH_SHORT).show();
+        finishWithResult();
+    }
+
+    /** Commit the host placement when this screen was opened as a widget configuration. */
+    private void finishWithResult() {
+        if (configuring) {
+            Intent result = new Intent();
+            result.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId);
+            setResult(RESULT_OK, result);
+        }
         finish();
     }
 
