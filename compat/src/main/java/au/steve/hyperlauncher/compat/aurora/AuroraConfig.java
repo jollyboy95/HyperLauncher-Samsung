@@ -87,11 +87,12 @@ public final class AuroraConfig {
 
     public void applyPreset(int preset) {
         if (preset == 13) {
-            // HyperOS 4 Glass Frame
+            // HyperOS 4 Glass Frame - tall thin condensed clock, small centred date
             prefs.edit().remove("clockYRatio").remove("hoursMaterial").remove("minutesMaterial")
-                    .putInt("clockPreset", 13).putInt("clockStyle", 0).putInt("clockMaterial", 1)
+                    .putInt("clockPreset", 13).putInt("clockStyle", 1).putInt("clockMaterial", 1)
                     .putInt("clockSize", 175).putInt("clockY", 0).putFloat("clockX", 0)
-                    .putFloat("clockStretch", 1.0f).putFloat("clockWeight", 0.65f)
+                    .putFloat("clockStretch", 1.0f).putFloat("clockWeight", 0.05f)
+                    .putFloat("clockWidth", 0.45f).putFloat("clockSpacing", 0.35f)
                     .putFloat("clockOpacity", 0.95f).putInt("clockColor", 0xFFFFFFFF)
                     .putBoolean("autoClockColor", false).putBoolean("showSignature", true).apply();
             return;

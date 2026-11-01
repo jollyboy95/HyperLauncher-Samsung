@@ -392,14 +392,21 @@ public final class AuroraSceneView extends View {
         c.restoreToCount(clockLayer);
         if (config.clockPreset() >= 5) {
             if (config.outlineOverSubject()) drawPoster(c, digits, color, true, width, height);
-            if (config.dateStyle() != 3 && config.clockPreset() < 13) {
-                if (config.clockPreset() == 6) {
+            if (config.dateStyle() != 3) {
+                if (config.clockPreset() == 13) {
+                    // HyperOS 4 Glass: small centred date underneath the clock
+                    float dateY = layout.firstBaseline + layout.lineHeight + height * 0.03f;
+                    text(c, date, width * 0.5f, dateY, Math.max(10f, height * 0.011f), dateColor, dateFace, true, 0.10f);
+                } else if (config.clockPreset() == 10) {
+                    text(c, date, width * .5f, height * .35f, height * .014f, dateColor, dateFace, true, .04f);
+                } else if (config.clockPreset() == 6) {
                     String day = new SimpleDateFormat("EEEE", Locale.getDefault()).format(now).toUpperCase(Locale.getDefault());
                     for (int i = 0; i < day.length(); i++) text(c, day.substring(i, i + 1), width * .92f,
                             height * .12f + i * height * .025f, height * .019f, dateColor, dateFace, true, 0);
+                } else {
+                    text(c, date, width * .5f, config.clockPreset() == 10 ? height * .35f
+                            : NotificationDisplay.dateBaseline(height, bottomContentTop), height * .014f, dateColor, dateFace, true, .04f);
                 }
-                text(c, date, width * .5f, config.clockPreset() == 10 ? height * .35f
-                        : NotificationDisplay.dateBaseline(height, bottomContentTop), height * .014f, dateColor, dateFace, true, .04f);
             }
         }
 
