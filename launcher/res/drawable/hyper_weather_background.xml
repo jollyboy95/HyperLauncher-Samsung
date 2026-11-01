@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Original HyperLauncher weather surface. SPDX-License-Identifier: Apache-2.0 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <gradient
+        android:angle="315"
+        android:startColor="#F01B2740"
+        android:centerColor="#EA243A63"
+        android:endColor="#E6204D7A" />
+    <corners android:radius="28dp" />
+    <stroke android:width="1dp" android:color="#334F7BD6" />
+</shape>

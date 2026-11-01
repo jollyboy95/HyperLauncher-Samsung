@@ -1,8 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- HyperLauncher channel overlay. SPDX-License-Identifier: Apache-2.0 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <application>
-        <activity android:name="au.steve.hyperlauncher.settings.HyperSettingsActivity" android:exported="false" android:theme="@android:style/Theme.Material.Light.NoActionBar" />
+        <activity android:name="au.steve.hyperlauncher.settings.HyperSettingsActivity" android:exported="false" android:label="@string/hyper_settings_title" android:theme="@android:style/Theme.Material.Light.NoActionBar" />
+        <activity android:name="au.steve.hyperlauncher.wallpaper.HyperWallpaperActivity" android:exported="false" android:label="@string/hyper_wallpaper_title" android:theme="@android:style/Theme.Material.Light.NoActionBar" />
+        <activity android:name="au.steve.hyperlauncher.weather.HyperWeatherActivity" android:exported="false" android:label="@string/hyper_weather_settings_title" android:theme="@android:style/Theme.Material.Light.NoActionBar" />
+
         <receiver android:name="au.steve.hyperlauncher.widgets.HyperClockWidget" android:exported="false" android:label="@string/hyper_clock_name">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/hyper_clock_info" />
@@ -14,6 +19,10 @@
                 <action android:name="android.intent.action.ACTION_POWER_DISCONNECTED" />
             </intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/hyper_battery_info" />
+        </receiver>
+        <receiver android:name="au.steve.hyperlauncher.widgets.HyperWeatherWidget" android:exported="false" android:label="@string/hyper_weather_name">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/hyper_weather_info" />
         </receiver>
     </application>
 </manifest>

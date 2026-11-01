@@ -46,9 +46,19 @@ def prepare(dest):
     for name, before, after in [
         ('config_default_icon_shape', 'system', 'squircle'),
         ('config_default_hotseat_mode', 'lawnchair', 'disabled'),
+        ('config_default_folder_color', 'default', 'custom|#e6ffffff'),
+        ('config_default_accent_color', 'no_default', 'wallpaper_primary'),
     ]:
         patch(config, f'<string name="{name}" translatable="false">{before}</string>', f'<string name="{name}" translatable="false">{after}</string>')
-    patch(config, '<bool name="config_default_enable_smartspace">true</bool>', '<bool name="config_default_enable_smartspace">false</bool>')
+    for name in [
+        'config_default_enable_smartspace',
+        'config_default_show_suggested_apps_at_drawer_top',
+        'config_default_enable_two_line_allapps',
+        'config_default_show_scrollbar',
+    ]:
+        patch(config, f'<bool name="{name}">true</bool>', f'<bool name="{name}">false</bool>')
+    patch(config, '<item name="config_default_drawer_left_right_factor" type="dimen" format="float">0.1</item>',
+          '<item name="config_default_drawer_left_right_factor" type="dimen" format="float">0.05</item>')
     patch(config, '<resources>', '<!-- Modified for HyperLauncher: first-run defaults. -->\n<resources>')
     prefs = dest / 'lawnchair/src/app/lawnchair/preferences/PreferenceManager.kt'
     for old, new in [
@@ -78,7 +88,23 @@ def prepare(dest):
     layout = re.sub(r'    <resolve\n        launcher:container="-101"\n        launcher:screen="2".*?</resolve>\n', '', layout, count=1, flags=re.S)
     layout = layout.replace('launcher:screen="3"\n        launcher:x="3"', 'launcher:screen="2"\n        launcher:x="2"')
     layout = layout.replace('launcher:screen="4"\n        launcher:x="4"', 'launcher:screen="3"\n        launcher:x="3"')
-    layout = layout.replace('    <!-- Screen 0 -->', '    <!-- Modified for HyperLauncher: four-app dock; open upper rows for clock widgets. -->\n    <!-- Screen 0 -->')
+    layout = layout.replace('    <!-- Screen 0 -->', '    <!-- Modified for HyperLauncher: four-app dock; open upper rows for Hyper cards. -->\n    <!-- Screen 0 -->')
+    # Preview builds use the .debug application id. The weather card is added from
+    # the widget picker because it needs a city selected first.
+    widget_package = LOCK['application_id'] + '.debug'
+    layout = layout.replace('</favorites>', f'''
+    <!-- Modified for HyperLauncher: fresh-install Hyper clock and battery cards. -->
+    <appwidget
+        launcher:packageName="{widget_package}"
+        launcher:className="au.steve.hyperlauncher.widgets.HyperClockWidget"
+        launcher:screen="0" launcher:spanX="5" launcher:spanY="2"
+        launcher:x="0" launcher:y="0" />
+    <appwidget
+        launcher:packageName="{widget_package}"
+        launcher:className="au.steve.hyperlauncher.widgets.HyperBatteryWidget"
+        launcher:screen="0" launcher:spanX="2" launcher:spanY="2"
+        launcher:x="0" launcher:y="2" />
+</favorites>''')
     workspace.write_text(layout)
     settings = dest / 'settings.gradle'
     # Do not publish upstream's automatic build scans for this private project.
