@@ -37,7 +37,9 @@ import au.steve.hyperlauncher.compat.aurora.AuroraConfig;
 import au.steve.hyperlauncher.compat.aurora.DepthEngine;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import org.json.JSONArray;
@@ -644,11 +646,26 @@ public final class AuroraSettingsActivity extends Activity {
     }
 
     private void pick(int code, String type) {
-        Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        // Gallery apps (including Samsung Gallery) expose their media through
+        // ACTION_GET_CONTENT. ACTION_OPEN_DOCUMENT only lists document providers,
+        // which is why the gallery was missing from the picker.
+        Intent i = new Intent(Intent.ACTION_GET_CONTENT);
         i.setType(type);
         i.addCategory(Intent.CATEGORY_OPENABLE);
-        i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
-        startActivityForResult(i, code);
+        i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        try {
+            startActivityForResult(i, code);
+        } catch (android.content.ActivityNotFoundException missing) {
+            Intent documents = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+            documents.setType(type);
+            documents.addCategory(Intent.CATEGORY_OPENABLE);
+            documents.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+            try {
+                startActivityForResult(documents, code);
+            } catch (android.content.ActivityNotFoundException alsoMissing) {
+                Toast.makeText(this, "No gallery or file picker available", Toast.LENGTH_SHORT).show();
+            }
+        }
     }
 
     private void maybeAutoSegment(boolean force) {
@@ -891,26 +908,96 @@ public final class AuroraSettingsActivity extends Activity {
     @Override protected void onActivityResult(int request, int result, Intent data) {
         super.onActivityResult(request, result, data);
         if ((request == 101 || request == 102 || request == 103) && result == RESULT_OK && data != null && data.getData() != null) {
-            Uri u = data.getData();
-            try {
-                getContentResolver().takePersistableUriPermission(u, Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                if (request == 101) {
-                    config.prefs().edit().putString("foreground", u.toString()).apply();
-                    Toast.makeText(this, "Cutout saved", Toast.LENGTH_SHORT).show();
-                } else if (request == 103) {
-                    config.prefs().edit().putString("videoWallpaper", u.toString()).apply();
-                    wallpaperHost.reload();
-                    Toast.makeText(this, "Video wallpaper saved", Toast.LENGTH_SHORT).show();
-                } else {
-                    config.prefs().edit().putString("wallpaper", u.toString()).remove("autoForeground").remove("foreground").remove("videoWallpaper")
-                            .putString("depthStatus", "Wallpaper saved. Analysing subject…").apply();
-                    maybeAutoSegment(true);
-                    wallpaperHost.reload();
-                }
-                preview.reload();
-            } catch (Exception e) {
-                Toast.makeText(this, "Unable to save image", Toast.LENGTH_SHORT).show();
+            acceptPickedMedia(request, data.getData());
+        }
+    }
+
+    /**
+     * Keeps the provider URI when it grants durable access. Gallery providers only
+     * offer a temporary read grant, so import those selections into app storage.
+     */
+    private void acceptPickedMedia(int request, Uri source) {
+        Uri stored = null;
+        try {
+            getContentResolver().takePersistableUriPermission(source, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            stored = source;
+        } catch (Exception noDurableGrant) {
+            // Expected for ACTION_GET_CONTENT and some gallery providers.
+        }
+        if (stored != null) {
+            finishPickedMedia(request, stored);
+        } else {
+            importPickedMedia(request, source);
+        }
+    }
+
+    private void importPickedMedia(int request, Uri source) {
+        Toast.makeText(this, "Importing selection…", Toast.LENGTH_SHORT).show();
+        final String label = request == 101 ? "cutout" : request == 103 ? "video-wallpaper" : "wallpaper";
+        new Thread(() -> {
+            File dir = new File(getFilesDir(), "picked-media");
+            if (!dir.exists() && !dir.mkdirs()) {
+                runOnUiThread(() -> Toast.makeText(this, "Unable to save selection", Toast.LENGTH_SHORT).show());
+                return;
             }
+            File target = new File(dir, label + "-" + System.currentTimeMillis() + mediaExtension(source));
+            try (InputStream in = getContentResolver().openInputStream(source);
+                 OutputStream out = new FileOutputStream(target)) {
+                if (in == null) throw new IllegalStateException("No readable stream");
+                byte[] buffer = new byte[64 * 1024];
+                int count;
+                while ((count = in.read(buffer)) != -1) out.write(buffer, 0, count);
+                removeOldImports(dir, label, target);
+                Uri stored = Uri.fromFile(target);
+                runOnUiThread(() -> finishPickedMedia(request, stored));
+            } catch (Exception failure) {
+                if (target.exists() && !target.delete()) target.deleteOnExit();
+                runOnUiThread(() -> Toast.makeText(this, "Unable to save selection", Toast.LENGTH_SHORT).show());
+            }
+        }, "aurora-media-import").start();
+    }
+
+    private String mediaExtension(Uri source) {
+        String type = null;
+        try { type = getContentResolver().getType(source); } catch (Exception ignored) { }
+        if ("image/png".equals(type)) return ".png";
+        if ("image/webp".equals(type)) return ".webp";
+        if ("image/heic".equals(type) || "image/heif".equals(type)) return ".heic";
+        if (type != null && type.startsWith("video/")) {
+            if (type.contains("webm")) return ".webm";
+            if (type.contains("3gpp")) return ".3gp";
+            return ".mp4";
+        }
+        return ".jpg";
+    }
+
+    private void removeOldImports(File dir, String label, File keep) {
+        File[] files = dir.listFiles();
+        if (files == null) return;
+        for (File file : files) {
+            if (file.equals(keep) || !file.getName().startsWith(label + "-")) continue;
+            if (!file.delete()) file.deleteOnExit();
+        }
+    }
+
+    private void finishPickedMedia(int request, Uri stored) {
+        try {
+            if (request == 101) {
+                config.prefs().edit().putString("foreground", stored.toString()).apply();
+                Toast.makeText(this, "Cutout saved", Toast.LENGTH_SHORT).show();
+            } else if (request == 103) {
+                config.prefs().edit().putString("videoWallpaper", stored.toString()).apply();
+                wallpaperHost.reload();
+                Toast.makeText(this, "Video wallpaper saved", Toast.LENGTH_SHORT).show();
+            } else {
+                config.prefs().edit().putString("wallpaper", stored.toString()).remove("autoForeground").remove("foreground").remove("videoWallpaper")
+                        .putString("depthStatus", "Wallpaper saved. Analysing subject…").apply();
+                maybeAutoSegment(true);
+                wallpaperHost.reload();
+            }
+            preview.reload();
+        } catch (Exception e) {
+            Toast.makeText(this, "Unable to save image", Toast.LENGTH_SHORT).show();
         }
     }
 
