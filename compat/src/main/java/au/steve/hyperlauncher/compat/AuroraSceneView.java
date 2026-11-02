@@ -18,10 +18,10 @@ import android.view.View;
 import android.view.animation.DecelerateInterpolator;
 import au.steve.hyperlauncher.compat.aurora.AuroraConfig;
 import au.steve.hyperlauncher.compat.aurora.DepthEngine;
-import au.steve.hyperlauncher.compat.aurora.core.NotificationDisplay;
 import au.steve.hyperlauncher.compat.aurora.core.ClockLayout;
-import au.steve.hyperlauncher.compat.aurora.core.ColorMath;
+import au.steve.hyperlauncher.compat.aurora.core.ClockTone;
 import au.steve.hyperlauncher.compat.aurora.core.GlassBlur;
+import au.steve.hyperlauncher.compat.aurora.core.NotificationDisplay;
 import au.steve.hyperlauncher.compat.aurora.core.WallpaperTransform;
 import java.io.File;
 import java.io.InputStream;
@@ -53,6 +53,9 @@ public final class AuroraSceneView extends View {
     private int displayedPreset;
     private float transition = 1f;
     private ValueAnimator animator;
+    private boolean clockShadow;
+    private String autoTintKey;
+    private int autoTintInk = 0xFFE9ECF2;
 
     public AuroraSceneView(Context context, boolean preview) {
         this(context, preview, new AuroraConfig(context));
@@ -227,23 +230,105 @@ public final class AuroraSceneView extends View {
         canvas.restoreToCount(save);
     }
 
-    private int clockColour() {
+    private int clockColour(RectF region) {
         int manual = config.clockColor();
         int alpha = Math.round(config.clockOpacity() * 255f * (.65f + .35f * transition));
-        if (!config.autoClockColor() || background == null) return (alpha << 24) | (manual & 0x00FFFFFF);
-        int w = background.getWidth();
-        int h = background.getHeight();
-        int[] samples = new int[144];
+        if (!config.autoClockColor() || background == null) {
+            clockShadow = false;
+            autoTintKey = null;
+            return (alpha << 24) | (manual & 0x00FFFFFF);
+        }
+        String key = loadedBackground + "|" + Math.round(region.left) + "," + Math.round(region.top) + ","
+                + Math.round(region.right) + "," + Math.round(region.bottom) + "|"
+                + Math.round(config.dimAmount() * 100f) + "|" + Math.round(frameZoom * 100f) + "|"
+                + Math.round(frameFocusX * 1000f) + "," + Math.round(frameFocusY * 1000f);
+        if (!key.equals(autoTintKey)) {
+            autoTintKey = key;
+            ClockTone.Selection picked = ClockTone.select(sampleBackdrop(region));
+            autoTintInk = picked.ink;
+            clockShadow = picked.shadow;
+        }
+        return (alpha << 24) | (autoTintInk & 0x00FFFFFF);
+    }
+
+    /** Clock-area rect on the canvas: exact for classic layouts, mirrored bands for poster ones. */
+    private RectF clockRegion(ClockLayout layout, float width, float height,
+            float hoursUnit, float minutesUnit, float pairUnit) {
+        float cx = layout.clockX;
+        if (config.clockPreset() >= 5) return posterClockRegion(width, height);
+        float digitH = layout.fittedSize * 0.72f * layout.verticalScale;
+        float top = Math.max(0f, layout.firstBaseline - digitH * 1.3f);
+        float bottom = Math.min(height, layout.stacked
+                ? layout.firstBaseline + layout.lineHeight + digitH * .3f
+                : layout.firstBaseline + digitH * .3f);
+        float unit = layout.stacked ? Math.max(hoursUnit, minutesUnit) : pairUnit;
+        float halfW = Math.max(width * .08f, unit * layout.fittedSize * layout.horizontalScale * .56f);
+        return new RectF(Math.max(0f, cx - halfW), top, Math.min(width, cx + halfW), bottom);
+    }
+
+    /** Best-effort sampling bands mirroring the digit boxes in drawPoster; drawPoster stays authoritative. */
+    private RectF posterClockRegion(float w, float h) {
+        switch (config.clockPreset()) {
+            case 9: return new RectF(w * .07f, h * .08f, w * .93f, h * .65f);
+            case 10: return new RectF(w * .07f, h * .08f, w * .93f, h * .31f);
+            case 11: return new RectF(w * .08f, h * .09f, w * .92f, h * .63f);
+            case 12: case 6: return new RectF(w * .13f, h * .09f, w * .87f, h * .81f);
+            case 5: return new RectF(w * .06f, h * .10f, w * .94f, h * .55f);
+            case 7: return new RectF(w * .08f, h * .18f, w * .92f, h * .49f);
+            case 8: return new RectF(w * .08f, h * .10f, w * .40f, h * .55f);
+            case 13: return new RectF(w * .14f, h * .16f, w * .86f, h * .35f);
+            case 14: return new RectF(w * .06f, h * .07f, w * .68f, h * .34f);
+            case 15: return new RectF(w * .10f, h * .09f, w * .90f, h * .79f);
+            case 16: return new RectF(w * .08f, h * .11f, w * .48f, h * .38f);
+            case 17: return new RectF(w * .07f, h * .24f, w * .62f, h * .36f);
+            case 18: return new RectF(w * .06f, h * .08f, w * .96f, h * .72f);
+            default: return new RectF(w * .10f, h * .10f, w * .90f, h * .55f);
+        }
+    }
+
+    /** Sparse region samples composited with the vertical scrim, via the same cover transform. */
+    private int[] sampleBackdrop(RectF region) {
+        float width = getWidth(), height = getHeight();
+        if (width <= 0 || height <= 0 || background == null || region.isEmpty()) return null;
+        WallpaperTransform t = WallpaperTransform.compute(background.getWidth(), background.getHeight(),
+                width, height, frameZoom, frameFocusX, frameFocusY);
+        int columns = 8, rows = 6;
+        int[] samples = new int[columns * rows];
         int k = 0;
-        for (int y = 0; y < 12; y++) {
-            for (int x = 0; x < 12; x++) {
-                samples[k++] = background.getPixel(Math.min(w - 1, (x * 2 + 1) * w / 24),
-                        Math.min(h - 1, (y * 2 + 1) * h / 24));
+        for (int row = 0; row < rows; row++) {
+            for (int col = 0; col < columns; col++) {
+                float vx = Math.max(region.left, Math.min(region.right,
+                        region.left + (col + .5f) * region.width() / columns));
+                float vy = Math.max(region.top, Math.min(region.bottom,
+                        region.top + (row + .5f) * region.height() / rows));
+                float sx = Math.max(0f, Math.min(background.getWidth() - 1, (vx - t.dx) / t.scale));
+                float sy = Math.max(0f, Math.min(background.getHeight() - 1, (vy - t.dy) / t.scale));
+                samples[k++] = scrimOver(background.getPixel(Math.round(sx), Math.round(sy)), vy / height);
             }
         }
-        int auto = ColorMath.fromSamples(samples);
-        int a = Math.round(config.clockOpacity() * 255f * (.65f + .35f * transition));
-        return (a << 24) | (auto & 0x00FFFFFF);
+        return samples;
+    }
+
+    private static int[] scrimStops(float dim) {
+        return new int[]{mix(0xCC050914, dim), mix(0x14050A12, dim * .35f), mix(0xB0050910, dim)};
+    }
+
+    /** Mirrors the onDraw scrim gradient so samples show what is actually behind the clock. */
+    private int scrimOver(int wallpaperPixel, float yFrac) {
+        int[] stops = scrimStops(config.dimAmount());
+        float part; int from, to;
+        if (yFrac <= .42f) { from = stops[0]; to = stops[1]; part = Math.max(0f, yFrac / .42f); }
+        else { from = stops[1]; to = stops[2]; part = Math.min(1f, (yFrac - .42f) / .58f); }
+        int a = Math.round((from >>> 24) + ((to >>> 24) - (from >>> 24)) * part);
+        int r = Math.round(((from >>> 16) & 255) + (((to >>> 16) & 255) - ((from >>> 16) & 255)) * part);
+        int g = Math.round(((from >>> 8) & 255) + (((to >>> 8) & 255) - ((from >>> 8) & 255)) * part);
+        int b = Math.round((from & 255) + ((to & 255) - (from & 255)) * part);
+        float shade = a / 255f, expanse = 1f - shade;
+        int p = wallpaperPixel;
+        return 0xFF000000
+                | (Math.round(r * shade + ((p >>> 16) & 255) * expanse) << 16)
+                | (Math.round(g * shade + ((p >>> 8) & 255) * expanse) << 8)
+                | Math.round(b * shade + (p & 255) * expanse);
     }
 
     private Typeface clockFace() {
@@ -264,6 +349,11 @@ public final class AuroraSceneView extends View {
         paint.setLetterSpacing(tracking);
         paint.setTextAlign(center ? Paint.Align.CENTER : Paint.Align.LEFT);
         int material = drawingClock && !videoReady ? (materialOverride >= 0 ? materialOverride : config.clockMaterial()) : 0;
+        if (drawingClock && clockShadow && !videoReady && material != 2 && material != 4) {
+            boolean light = ((color >>> 16) & 255) + ((color >>> 8) & 255) + (color & 255) > 382;
+            paint.setShadowLayer(Math.max(1.2f, size * .05f), 0f, Math.max(.8f, size * .012f),
+                    light ? 0x44000000 : 0x3DFFFFFF);
+        }
         if (material == 1 || material == 3) {
             int alpha = (color >>> 24) & 255;
             int light = (alpha << 24) | 0x00FFFFFF;
@@ -322,8 +412,7 @@ public final class AuroraSceneView extends View {
         float dim = config.dimAmount();
         paint.reset();
         paint.setShader(new LinearGradient(0, 0, 0, height,
-                new int[]{mix(0xCC050914, dim), mix(0x14050A12, dim * 0.35f), mix(0xB0050910, dim)},
-                new float[]{0f, 0.42f, 1f}, Shader.TileMode.CLAMP));
+                scrimStops(dim), new float[]{0f, 0.42f, 1f}, Shader.TileMode.CLAMP));
         c.drawRect(0, 0, width, height, paint);
         paint.setShader(null);
 
@@ -341,12 +430,14 @@ public final class AuroraSceneView extends View {
         measure.setTypeface(face);
         measure.setTextSize(100f);
         measure.setLetterSpacing(-0.07f);
+        float hoursUnit = measure.measureText(hours) / 100f;
+        float minutesUnit = measure.measureText(minutes) / 100f;
+        float pairUnit = measure.measureText(config.clockPreset() == 3 ? digits : hours + ":" + minutes) / 100f;
         ClockLayout layout = ClockLayout.compute(config.clockPreset(), width, height, config.clockSize(),
                 clockOffset(height), config.clockWidth(), config.clockSpacing(),
-                measure.measureText(hours) / 100f, measure.measureText(minutes) / 100f,
-                measure.measureText(config.clockPreset() == 3 ? digits : hours + ":" + minutes) / 100f,
+                hoursUnit, minutesUnit, pairUnit,
                 config.clockStretch(), config.clockX());
-        int color = clockColour();
+        int color = clockColour(clockRegion(layout, width, height, hoursUnit, minutesUnit, pairUnit));
         int dateColor = (Math.round(Math.max(.72f, config.clockOpacity()) * 255) << 24) | (color & 0x00FFFFFF);
         if (config.clockPreset() < 5) text(c, date, layout.dateX, layout.dateY, Math.max(11f, height * 0.012f), dateColor, dateFace, true, 0.14f);
 
