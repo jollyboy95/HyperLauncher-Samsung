@@ -18,8 +18,8 @@ def main():
         sys.exit("Task must contain 1-2500 characters.")
     if not path or path.startswith(("/", ".")) or ".." in pathlib.PurePosixPath(path).parts:
         sys.exit("Invalid target path.")
-    if not re.search(r"lock.?screen|hyperlock", path, re.IGNORECASE):
-        sys.exit("Lock-screen-only experiment: target path must identify lock-screen code.")
+    if not path.startswith("compat/src/main/java/au/steve/hyperlauncher/compat/") or not re.search(r"(Aurora|Lock|Clock|Notification|Wallpaper|Depth|Keyguard)", pathlib.PurePosixPath(path).name, re.IGNORECASE):
+        sys.exit("Only named lock-screen Java source files under compat/src/main are allowed.")
     target = pathlib.Path(path)
     if not target.is_file() or target.is_symlink():
         sys.exit("Target must be an existing regular file.")
