@@ -29,7 +29,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: true
-        with:
           ref: feature/hyperos4-lockscreen
       - name: Check out agent scripts from main
         uses: actions/checkout@v4
