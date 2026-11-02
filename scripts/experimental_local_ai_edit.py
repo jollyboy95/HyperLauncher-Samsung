@@ -18,6 +18,8 @@ def main():
         sys.exit("Task must contain 1-2500 characters.")
     if not path or path.startswith(("/", ".")) or ".." in pathlib.PurePosixPath(path).parts:
         sys.exit("Invalid target path.")
+    if not re.search(r"lock.?screen|hyperlock", path, re.IGNORECASE):
+        sys.exit("Lock-screen-only experiment: target path must identify lock-screen code.")
     target = pathlib.Path(path)
     if not target.is_file() or target.is_symlink():
         sys.exit("Target must be an existing regular file.")
@@ -29,7 +31,7 @@ def main():
     if len(original) > 12000:
         sys.exit("File too large for the experimental model.")
     prompt = (
-        "You are a careful Android developer. Return ONLY the full updated contents of the "
+        "You are a careful Android lock-screen developer. Work ONLY on lock-screen behavior, not launcher, home screen, app drawer or widgets. Return ONLY the full updated contents of the "
         "single file below. Do not use markdown fences or commentary. Preserve all unrelated "
         "content. Do not add secrets, network calls or destructive commands. "
         "If you cannot make the change safely, return the original file unchanged.\n\n"
