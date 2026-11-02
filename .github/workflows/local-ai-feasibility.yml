@@ -1,0 +1,50 @@
+name: Local AI feasibility test
+
+# Manual only. This workflow does not edit source code or create PRs.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-local-model:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Install Ollama
+        run: curl -fsSL https://ollama.com/install.sh | sh
+      - name: Start Ollama and download small coding model
+        run: |
+          ollama serve > /tmp/ollama.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:11434/api/tags >/dev/null; then break; fi
+            sleep 2
+          done
+          ollama pull qwen2.5-coder:1.5b
+      - name: Test model response on repository context
+        run: |
+          python3 - <<'PY'
+          import json, urllib.request, pathlib, os
+          files = sorted(str(p) for p in pathlib.Path(".").iterdir() if p.name != ".git")
+          prompt = ("You are evaluating an Android launcher repository. "
+                    "Give a brief plan for inspecting and testing this project. "
+                    "Do not claim you edited files. Top-level entries: " + ", ".join(files[:40]))
+          data = json.dumps({"model":"qwen2.5-coder:1.5b","prompt":prompt,"stream":False,
+                             "options":{"num_predict":250,"num_ctx":2048}}).encode()
+          req = urllib.request.Request("http://127.0.0.1:11434/api/generate",
+                                       data=data,headers={"Content-Type":"application/json"})
+          with urllib.request.urlopen(req, timeout=240) as response:
+              result = json.load(response)
+          answer = result.get("response","").strip()
+          if not answer:
+              raise RuntimeError("Local model returned no response")
+          print(answer)
+          with open(os.environ["GITHUB_STEP_SUMMARY"],"a") as f:
+              f.write("## Local coding model smoke test\n\n")
+              f.write("Model: qwen2.5-coder:1.5b (CPU runner)\n\n")
+              f.write("This is a connectivity and inference test, **not** an autonomous code edit.\n\n")
+              f.write(answer.replace("<","&lt;").replace(">","&gt;")[:5000]+"\n")
+          PY
