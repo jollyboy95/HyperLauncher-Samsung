@@ -38,6 +38,57 @@ jobs:
         with:
           gradle-version: '8.13'
 
+      # Robolectric downloads its Android runtime jars directly and can receive
+      # HTTP 429 responses from shared Maven Central CI egress. Pre-populate its
+      # local Maven cache with retries and a mirror before running tests.
+      - name: Restore Robolectric Android runtime jars
+        uses: actions/cache@v4
+        continue-on-error: true
+        with:
+          path: ~/.m2/repository/org/robolectric/android-all-instrumented
+          key: robolectric-${{ runner.os }}-${{ hashFiles('compat/build.gradle') }}-android-28-35
+          restore-keys: |
+            robolectric-${{ runner.os }}-
+
+      - name: Prefetch Robolectric Android runtime jars
+        shell: bash
+        run: |
+          set -euo pipefail
+          versions=(
+            "9-robolectric-4913185-2-i7"
+            "15-robolectric-13954326-i7"
+          )
+          mirrors=(
+            "https://maven-central.storage-download.googleapis.com/maven2"
+            "https://repo1.maven.org/maven2"
+          )
+          for version in "${versions[@]}"; do
+            dest="$HOME/.m2/repository/org/robolectric/android-all-instrumented/$version/android-all-instrumented-$version.jar"
+            if [ -s "$dest" ]; then
+              echo "Using cached Robolectric runtime $version"
+              continue
+            fi
+            mkdir -p "$(dirname "$dest")"
+            tmp="$dest.tmp"
+            ok=0
+            for mirror in "${mirrors[@]}"; do
+              echo "Downloading Robolectric runtime $version from $mirror"
+              if curl --fail --location --retry 5 --retry-all-errors --retry-delay 5 \
+                  --connect-timeout 20 --max-time 900 \
+                  --output "$tmp" \
+                  "$mirror/org/robolectric/android-all-instrumented/$version/android-all-instrumented-$version.jar"; then
+                mv "$tmp" "$dest"
+                ok=1
+                break
+              fi
+              rm -f "$tmp"
+            done
+            if [ "$ok" -ne 1 ]; then
+              echo "::error::Unable to download Robolectric runtime $version"
+              exit 1
+            fi
+          done
+
       - name: Run unit tests
         run: gradle --no-daemon --console=plain :compat:testDebugUnitTest
 
