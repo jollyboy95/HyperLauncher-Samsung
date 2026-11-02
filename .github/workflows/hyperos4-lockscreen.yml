@@ -38,6 +38,14 @@ jobs:
         with:
           gradle-version: '8.13'
 
+      # Keep one debug signing key across CI runs so Android treats new APKs as
+      # updates of the already installed debug app instead of requiring reinstall.
+      - name: Cache debug signing keystore
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: aurora-debug-keystore-v1
+
       # Robolectric downloads its Android runtime jars directly and can receive
       # HTTP 429 responses from shared Maven Central CI egress. Pre-populate its
       # local Maven cache with retries and a mirror before running tests.
