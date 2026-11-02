@@ -603,12 +603,8 @@ public final class AuroraSceneView extends View {
                 c.drawRoundRect(frame, corner, corner, paint);
                 paint.setStyle(Paint.Style.FILL);
 
-                if (config.dateStyle() != 3) {
-                    Typeface dateFace = Typeface.create("sans-serif-medium", Typeface.NORMAL);
-                    String dateStr = new SimpleDateFormat("EEE, d MMMM", Locale.getDefault()).format(new Date()).toUpperCase(Locale.getDefault());
-                    text(c, dateStr, w * 0.5f, top + (bottom - top) * 0.22f, h * 0.015f, 0xDDEEFAFF, dateFace, true, 0.10f);
-                }
-
+                // HyperOS 4 keeps the date underneath the glass clock frame, not
+                // inside it, so avoid drawing a second date in the frame.
                 materialOverride = 1; // Glass material
                 Typeface clockTypeface = Typeface.create(Typeface.create("sans-serif", Typeface.NORMAL), 380, false);
                 boxText(c, digits.substring(0, 2) + ":" + digits.substring(2),

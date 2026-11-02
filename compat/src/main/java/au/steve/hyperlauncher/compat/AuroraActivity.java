@@ -94,6 +94,11 @@ public class AuroraActivity extends Activity {
                 android.content.Context.RECEIVER_NOT_EXPORTED);
         wakeReceiverRegistered = true;
         setShowWhenLocked(true);
+        setTurnScreenOn(true);
+        getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN
+                | android.view.WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
+                | android.view.WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+                | android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(Color.BLACK);
         wallpaperHost = new AuroraWallpaperHost(this, false);
