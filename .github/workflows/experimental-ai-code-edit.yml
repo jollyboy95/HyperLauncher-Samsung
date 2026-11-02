@@ -1,0 +1,69 @@
+name: Experimental AI code edit
+
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: 'Describe one small code change'
+        required: true
+        type: string
+      target_file:
+        description: 'Lock-screen Java file in compat/src/main/java/au/steve/hyperlauncher/compat/'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: experimental-ai-edit
+  cancel-in-progress: false
+
+jobs:
+  propose-edit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+        with:
+          ref: feature/hyperos4-lockscreen
+      - name: Check out agent scripts from main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: agent-tools
+          persist-credentials: false
+      - name: Install Ollama
+        run: curl -fsSL https://ollama.com/install.sh | sh
+      - name: Start local model
+        run: |
+          ollama serve > /tmp/ollama.log 2>&1 &
+          for i in $(seq 1 45); do
+            if curl -fsS http://127.0.0.1:11434/api/tags >/dev/null; then break; fi
+            sleep 2
+          done
+          ollama pull qwen2.5-coder:1.5b
+      - name: Ask AI for a guarded one-file edit
+        env:
+          AI_TASK: ${{ inputs.task }}
+          AI_TARGET_FILE: ${{ inputs.target_file }}
+        run: python3 agent-tools/scripts/experimental_local_ai_edit.py
+      - name: Create branch and draft pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AI_TASK: ${{ inputs.task }}
+          AI_TARGET_FILE: ${{ inputs.target_file }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          BRANCH="ai-experiment/run-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          git checkout -b "$BRANCH"
+          git add -- "$AI_TARGET_FILE"
+          git commit -m "AI experiment: propose one-file edit"
+          git push origin "$BRANCH"
+          printf '%s\n' "Experimental CPU-hosted Qwen edit. Not automatically tested or merged." "" "Requested change:" "$AI_TASK" "" "File:" "$AI_TARGET_FILE" "" "Review the full diff and run Android tests before merging." > /tmp/pr-body.txt
+          gh pr create --draft --base feature/hyperos4-lockscreen --head "$BRANCH" --title "AI experiment: review proposed code edit" --body-file /tmp/pr-body.txt
