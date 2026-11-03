@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- HyperLauncher channel overlay. SPDX-License-Identifier: Apache-2.0 -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
+    <application>
+        <activity android:name="au.steve.hyperlauncher.settings.HyperSettingsActivity" android:exported="false" android:theme="@android:style/Theme.Material.Light.NoActionBar" />
+        <receiver android:name="au.steve.hyperlauncher.widgets.HyperClockWidget" android:exported="false" android:label="@string/hyper_clock_name">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/hyper_clock_info" />
+        </receiver>
+        <receiver android:name="au.steve.hyperlauncher.widgets.HyperBatteryWidget" android:exported="false" android:label="@string/hyper_battery_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="android.intent.action.ACTION_POWER_CONNECTED" />
+                <action android:name="android.intent.action.ACTION_POWER_DISCONNECTED" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/hyper_battery_info" />
+        </receiver>
+    </application>
+</manifest>
