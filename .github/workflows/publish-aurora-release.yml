@@ -1,6 +1,8 @@
 name: Publish Aurora signed update
 on:
   workflow_dispatch:
+  push:
+    tags: ['aurora-v*']
 permissions:
   contents: write
 jobs:
@@ -45,6 +47,11 @@ jobs:
           CODE=$(sed -n 's/.*versionCode \([0-9][0-9]*\).*/\1/p' compat/build.gradle | head -1)
           test -n "$CODE"
           echo "RELEASE_TAG=aurora-v$CODE" >> "$GITHUB_ENV"
+          if [ "${GITHUB_REF_TYPE:-}" = "tag" ] && [ "$GITHUB_REF_NAME" != "aurora-v$CODE" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match versionCode $CODE"; exit 1
+          fi
+          git log -1 --format='%B' | sed '/^Co-Authored-By:/d;/^Claude-Session:/d' > RELEASE_NOTES.md
+          printf '\n---\nSigned with the permanent Aurora Depth key. Android asks you to confirm the install; settings are kept.\n' >> RELEASE_NOTES.md
           cp compat/build/outputs/apk/release/*.apk AuroraDepth-v"$CODE"-signed.apk
           sha256sum AuroraDepth-v"$CODE"-signed.apk > SHA256SUMS.txt
       - name: Publish release with signed APK
@@ -55,5 +62,5 @@ jobs:
           set -euo pipefail
           gh release create "$RELEASE_TAG" AuroraDepth-v*-signed.apk SHA256SUMS.txt \
             --title "Aurora Depth $RELEASE_TAG" \
-            --notes "Signed Aurora Depth preview update. Android confirms installation. Preserve the same permanent signing key for future upgrades." \
+            --notes-file RELEASE_NOTES.md \
             --target "$GITHUB_SHA"
