@@ -18,6 +18,7 @@ public final class BridgePaths {
     /** Extra rows added to the snapshot for the System UI layer itself. */
     public static final String MODULE_ENABLED = "__module_enabled";
     public static final String HIDE_STOCK = "__hide_stock_clock";
+    public static final String RETRY_TOKEN = "__retry_token";
 
     public static boolean isImageKey(String key) { return IMAGE_KEYS.contains(key); }
 

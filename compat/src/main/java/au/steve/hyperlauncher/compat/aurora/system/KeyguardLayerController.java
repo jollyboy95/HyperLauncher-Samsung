@@ -41,12 +41,15 @@ final class KeyguardLayerController {
 
     private final ViewGroup root;
     private final SnapshotPrefs prefs = new SnapshotPrefs();
-    private final AuroraSceneView layer;
+    private final AuroraSceneView scene;
+    /** Container actually inserted into Samsung's ConstraintLayout; always carries an id. */
+    private final SafeLayer layer;
+    private final CrashGuard crashGuard;
+    private boolean shown, paused;
     private final Handler main = new Handler(Looper.getMainLooper());
     private final Handler bg;
     private final SharedPreferences guard;
     private final Set<View> hidden = Collections.newSetFromMap(new WeakHashMap<>());
-    private int pendingAtStart;
     private boolean hideStock, dumped;
 
     static void attach(ViewGroup root) {
@@ -64,24 +67,25 @@ final class KeyguardLayerController {
         bg = new Handler(worker.getLooper());
         Context sys = root.getContext();
         guard = sys.createDeviceProtectedStorageContext().getSharedPreferences("aurora_guard", Context.MODE_PRIVATE);
-        layer = new AuroraSceneView(sys, false, new AuroraConfig(prefs), 2400);
-        layer.setSystemKeyguard(true);
+        crashGuard = new CrashGuard(new CrashGuard.Store() {
+            @Override public int getInt(String k, int d) { return guard.getInt(k, d); }
+            @Override public long getLong(String k, long d) { return guard.getLong(k, d); }
+            @Override public void putIntNow(String k, int v) { guard.edit().putInt(k, v).commit(); }
+            @Override public void putLongNow(String k, long v) { guard.edit().putLong(k, v).commit(); }
+        });
+        scene = new AuroraSceneView(sys, false, new AuroraConfig(prefs), 2400);
+        scene.setSystemKeyguard(true);
+        layer = new SafeLayer(sys, () -> { hideStock = false; restoreStock(); report("render-error"); });
+        // Samsung applies ConstraintSets to KeyguardRootView; every child must have an id.
+        layer.setId(View.generateViewId());
         layer.setTag("aurora_layer");
         layer.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
-        layer.setVisibility(View.GONE);
+        layer.addView(scene, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
     }
 
     private void start() {
-        pendingAtStart = guard.getInt("pending", 0);
-        guard.edit().putInt("pending", pendingAtStart + 1).commit();
-        main.post(() -> {
-            try {
-                root.addView(layer, 0, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-                root.getViewTreeObserver().addOnPreDrawListener(preDraw);
-            } catch (Throwable t) {
-                Log.e(TAG, "addView failed", t);
-            }
-        });
+        // Nothing is inserted into Samsung's view tree here; that only happens in apply(),
+        // after the crash guard has been armed.
         try {
             root.getContext().getContentResolver().registerContentObserver(ModuleBridgeProvider.BASE, true,
                     new ContentObserver(bg) { @Override public void onChange(boolean self) { load(); } });
@@ -104,60 +108,69 @@ final class KeyguardLayerController {
         } catch (Throwable t) {
             Log.i(TAG, "Aurora settings not available yet: " + t.getMessage());
         }
-        if (next != null) {
-            try { cr.call(ModuleBridgeProvider.BASE, "hello", null, null); } catch (Throwable ignored) { }
-        }
         final Map<String, Object> snapshot = next;
         main.post(() -> apply(snapshot));
     }
 
     private void apply(Map<String, Object> snapshot) {
         try {
+            if (snapshot != null && snapshot.get(BridgePaths.RETRY_TOKEN) instanceof Long)
+                crashGuard.acceptRetryToken((Long) snapshot.get(BridgePaths.RETRY_TOKEN));
             boolean enabled = snapshot != null && Boolean.TRUE.equals(snapshot.get(BridgePaths.MODULE_ENABLED))
-                    && snapshot.get("wallpaper") != null;
-            if (enabled && pendingAtStart >= 3) {
-                String revision = String.valueOf(snapshot.hashCode());
-                String failed = guard.getString("failedRevision", null);
-                if (failed == null) { guard.edit().putString("failedRevision", revision).apply(); failed = revision; }
-                if (revision.equals(failed)) {
-                    Log.w(TAG, "Aurora layer paused after repeated System UI restarts; change any setting in Aurora to retry");
-                    enabled = false;
-                } else {
-                    pendingAtStart = 0;
-                    guard.edit().putInt("pending", 1).remove("failedRevision").apply();
+                    && snapshot.get("wallpaper") != null && !layer.failed();
+            if (enabled && !shown) {
+                if (!crashGuard.arm()) {
+                    paused = true;
+                    Log.w(TAG, "Aurora system layer paused after System UI restarts; tap Retry in Aurora > System");
+                    report("paused");
+                    return;
                 }
-            }
-            hideStock = enabled && Boolean.TRUE.equals(snapshot.get(BridgePaths.HIDE_STOCK));
-            if (enabled) {
+                paused = false;
                 prefs.replace(snapshot);
-                layer.reload();
+                scene.reload();
+                root.addView(layer, 0, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+                root.getViewTreeObserver().addOnPreDrawListener(preDraw);
+                shown = true;
+                main.postDelayed(markHealthy, CrashGuard.HEALTHY_MS);
+            } else if (enabled) {
+                prefs.replace(snapshot);
+                scene.reload();
                 layer.setVisibility(View.VISIBLE);
-                main.removeCallbacks(markHealthy);
-                main.postDelayed(markHealthy, 15_000);
-            } else {
+            } else if (shown) {
                 layer.setVisibility(View.GONE);
             }
+            hideStock = enabled && shown && Boolean.TRUE.equals(snapshot.get(BridgePaths.HIDE_STOCK));
             if (!hideStock) restoreStock();
+            report(snapshot == null ? null : enabled ? "active" : paused ? "paused" : "off");
             root.invalidate();
         } catch (Throwable t) {
-            layer.setVisibility(View.GONE);
+            try { layer.setVisibility(View.GONE); } catch (Throwable ignored) { }
             hideStock = false;
             restoreStock();
             Log.e(TAG, "apply failed; layer hidden", t);
+            report("error: " + t.getClass().getSimpleName());
         }
     }
 
     private final Runnable markHealthy = new Runnable() {
         @Override public void run() {
-            if (layer.getVisibility() == View.VISIBLE) guard.edit().putInt("pending", 0).remove("failedRevision").apply();
+            if (layer.isAttachedToWindow() && !layer.failed()) crashGuard.healthy();
         }
     };
+
+    /** Tells the app what the System UI layer is doing (shown in Aurora > System). */
+    private void report(String status) {
+        if (status == null) return;
+        bg.post(() -> {
+            try { root.getContext().getContentResolver().call(ModuleBridgeProvider.BASE, "hello", status, null); } catch (Throwable ignored) { }
+        });
+    }
 
     private final ViewTreeObserver.OnPreDrawListener preDraw = new ViewTreeObserver.OnPreDrawListener() {
         @Override public boolean onPreDraw() {
             try {
                 if (!dumped) { dumped = true; Log.i(TAG, "Keyguard tree:\n" + dump(root, 0)); }
-                if (hideStock && layer.getVisibility() == View.VISIBLE) hideStockViews(root, 0);
+                if (hideStock && layer.getVisibility() == View.VISIBLE && !layer.failed()) hideStockViews(root, 0);
             } catch (Throwable t) {
                 hideStock = false;
                 restoreStock();

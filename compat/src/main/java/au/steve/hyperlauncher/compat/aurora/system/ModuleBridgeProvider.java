@@ -35,7 +35,7 @@ public final class ModuleBridgeProvider extends ContentProvider {
         aurora = c.getSharedPreferences(AuroraConfig.PREFS, Context.MODE_PRIVATE);
         module = new ModuleState(c);
         aurora.registerOnSharedPreferenceChangeListener(changed);
-        module.prefs().registerOnSharedPreferenceChangeListener((p, k) -> { if (!"lastSeen".equals(k)) notifyChanged(); });
+        module.prefs().registerOnSharedPreferenceChangeListener((p, k) -> { if (!"lastSeen".equals(k) && !"status".equals(k)) notifyChanged(); });
         return true;
     }
 
@@ -68,6 +68,7 @@ public final class ModuleBridgeProvider extends ContentProvider {
         }
         out.addRow(new Object[]{BridgePaths.MODULE_ENABLED, "b", module.layerEnabled() ? "1" : "0"});
         out.addRow(new Object[]{BridgePaths.HIDE_STOCK, "b", module.hideStockClock() ? "1" : "0"});
+        out.addRow(new Object[]{BridgePaths.RETRY_TOKEN, "l", String.valueOf(module.retryToken())});
         return out;
     }
 
@@ -101,7 +102,7 @@ public final class ModuleBridgeProvider extends ContentProvider {
 
     @Override public Bundle call(String method, String arg, Bundle extras) {
         enforceCaller();
-        if ("hello".equals(method)) module.markSeen();
+        if ("hello".equals(method)) module.markSeen(arg);
         return null;
     }
 
