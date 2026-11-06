@@ -6,7 +6,7 @@ on:
   pull_request:
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -81,3 +81,19 @@ jobs:
           name: validation-reports
           path: |
             compat/build/reports/
+      - name: Publish signed release for a new versionCode
+        if: github.event_name == 'push' && (github.ref_name == 'feature/aurora-lockscreen' || github.ref_name == 'main')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          CODE=$(sed -n 's/.*versionCode \([0-9][0-9]*\).*/\1/p' compat/build.gradle | head -1)
+          TAG="aurora-v$CODE"
+          if gh release view "$TAG" >/dev/null 2>&1; then echo "$TAG already published"; exit 0; fi
+          cp compat/build/outputs/apk/release/*.apk "AuroraDepth-v$CODE-signed.apk"
+          sha256sum "AuroraDepth-v$CODE-signed.apk" > SHA256SUMS.txt
+          git log -1 --format='%B' | sed '/^Co-Authored-By:/d;/^Claude-Session:/d' > RELEASE_NOTES.md
+          printf '\n---\nSigned with the permanent Aurora Depth key. Android asks you to confirm the install; settings are kept.\n' >> RELEASE_NOTES.md
+          gh release create "$TAG" "AuroraDepth-v$CODE-signed.apk" SHA256SUMS.txt \
+            --title "Aurora Depth $TAG" --notes-file RELEASE_NOTES.md --target "$GITHUB_SHA"
