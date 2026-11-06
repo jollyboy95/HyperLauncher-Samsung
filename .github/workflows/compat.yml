@@ -54,6 +54,23 @@ jobs:
           mkdir -p dist
           cp compat/build/outputs/apk/release/*.apk "dist/AuroraDepth-v${CODE}-${NAME}-signed.apk"
           ls -lh dist
+      - name: Verify System UI module packaging
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK=$(ls compat/build/outputs/apk/release/*.apk | head -1)
+          BT="$ANDROID_HOME/build-tools/35.0.0"
+          unzip -p "$APK" assets/xposed_init | grep -qx 'au.steve.hyperlauncher.compat.aurora.system.KeyguardHook'
+          "$BT/aapt2" dump xmltree --file AndroidManifest.xml "$APK" > manifest.txt
+          for m in xposedmodule xposedscope xposedminversion; do grep -q "\"$m\"" manifest.txt; done
+          grep -q 'ModuleBridgeProvider' manifest.txt
+          "$BT/aapt2" dump resources "$APK" | grep -q 'array/xposed_scope'
+          for d in $(unzip -Z1 "$APK" | grep '^classes.*\.dex$'); do unzip -p "$APK" "$d" > "$RUNNER_TEMP/$d"; done
+          "$BT/dexdump" "$RUNNER_TEMP"/classes*.dex | grep 'Class descriptor' > classes.txt
+          grep -q "Lau/steve/hyperlauncher/compat/aurora/system/KeyguardHook;" classes.txt
+          if grep -q "Lde/robv/android/xposed/" classes.txt; then echo "::error::Xposed API stub was packaged"; exit 1; fi
+          "$BT/apksigner" verify --print-certs "$APK" | grep -E 'Signer #1 certificate (DN|SHA-256)'
+          echo "Module packaging verified"
       - uses: actions/upload-artifact@v4
         with:
           name: AuroraDepth-signed-release
