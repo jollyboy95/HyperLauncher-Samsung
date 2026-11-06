@@ -12,6 +12,15 @@
         android:allowBackup="false"
         android:supportsRtl="true"
         android:largeHeap="true">
+        <!-- LSPosed / Vector module metadata: hooks System UI only (see aurora/system). -->
+        <meta-data android:name="xposedmodule" android:value="true" />
+        <meta-data android:name="xposeddescription" android:value="Aurora Depth inside Samsung's real lock screen. Keeps Samsung PIN, fingerprint, face unlock and notifications." />
+        <meta-data android:name="xposedminversion" android:value="93" />
+        <meta-data android:name="xposedscope" android:resource="@array/xposed_scope" />
+        <provider
+            android:name=".aurora.system.ModuleBridgeProvider"
+            android:authorities="au.steve.hyperlauncher.compat.aurora"
+            android:exported="true" />
         <activity android:name=".AuroraSettingsActivity" android:exported="false" android:theme="@android:style/Theme.Material.NoActionBar"/>
         <activity
             android:name=".AuroraActivity"

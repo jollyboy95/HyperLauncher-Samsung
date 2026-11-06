@@ -51,7 +51,7 @@ public final class AuroraSettingsActivity extends Activity {
             "Poster", "Staggered", "Rotated", "Cinema", "Mountain", "Magazine", "Outline Cinema",
             "HyperOS 4 Glass", "Movie: Up In Air", "Movie: Neon Dog", "Movie: Block", "Classic Left", "Ultra-Tall Art"
     };
-    private static final String[] TABS = {"Clock", "Colour", "Depth", "Wallpaper", "Features", "Designs", "Notifications", "About"};
+    private static final String[] TABS = {"Clock", "Colour", "Depth", "Wallpaper", "Features", "Designs", "Notifications", "System", "About"};
     private static final int[] CLOCK_COLOURS = {0xE8F4FBFF, 0xF2FFFFFF, 0xF2F3D5B0, 0xF2F5B6C9, 0xE8C9E4FF};
     private static final String[] COLOUR_NAMES = {"Ice", "Pearl", "Champagne", "Rose", "Lilac"};
 
@@ -243,6 +243,7 @@ public final class AuroraSettingsActivity extends Activity {
         else if (index == 4) effectsSheet();
         else if(index==5) designsSheet();
         else if(index==6) notificationsSheet();
+        else if(index==7) systemSheet();
         else aboutSheet();
         styleControls();
     }
@@ -575,6 +576,54 @@ public final class AuroraSettingsActivity extends Activity {
         sheet.addView(action("Notification access", v ->
                 startActivity(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))));
         sheet.addView(info("Samsung PIN, fingerprint and face unlock stay in control. Automatic wake is optional and uses the access you enable in Accessibility."));
+    }
+
+    /** Root + LSPosed/Vector: Aurora drawn inside Samsung's real keyguard by the System UI module. */
+    private void systemSheet() {
+        au.steve.hyperlauncher.compat.aurora.system.ModuleState module = new au.steve.hyperlauncher.compat.aurora.system.ModuleState(this);
+        long seen = module.lastSeen();
+        String status = seen == 0
+                ? "System lock screen: not detected yet. Enable Aurora Depth in Vector (LSPosed) with System UI ticked, then restart System UI."
+                : "System lock screen: System UI module last connected " + new java.text.SimpleDateFormat("d MMM, h:mm a", java.util.Locale.getDefault()).format(new java.util.Date(seen)) + ".";
+        sheet.addView(label(status, 13, muted, false));
+        sheet.addView(toggle("Show Aurora on Samsung's lock screen", module.layerEnabled(), module::setLayerEnabled));
+        sheet.addView(toggle("Hide Samsung's clock and date", module.hideStockClock(), module::setHideStockClock));
+        sheet.addView(action("Restart System UI (root)", v -> runRoot("pkill -f com.android.systemui", "System UI restarted")));
+        sheet.addView(action("Share keyguard diagnostic log", v -> shareKeyguardLog()));
+        sheet.addView(info("Samsung's PIN, fingerprint, face unlock, notifications and shortcuts stay Samsung's; Aurora replaces only the wallpaper, clock and depth layer beneath them. Changes apply live. After a reboot Aurora appears once the phone has been unlocked the first time. If System UI ever restarts repeatedly, Aurora pauses itself until you change a setting here."));
+    }
+
+    private void runRoot(String command, String done) {
+        new Thread(() -> {
+            String result;
+            try {
+                Process p = new ProcessBuilder("su", "-c", command).redirectErrorStream(true).start();
+                result = p.waitFor() == 0 ? done : "Root command failed. Grant Aurora root access in KernelSU.";
+            } catch (Exception e) {
+                result = "Root is not available: " + e.getMessage();
+            }
+            String message = result;
+            runOnUiThread(() -> android.widget.Toast.makeText(this, message, android.widget.Toast.LENGTH_LONG).show());
+        }, "aurora-root").start();
+    }
+
+    private void shareKeyguardLog() {
+        new Thread(() -> {
+            StringBuilder out = new StringBuilder();
+            try {
+                Process p = new ProcessBuilder("su", "-c", "logcat -d -v time -s AuroraKeyguard:V LSPosed-Bridge:V VectorBridge:V").redirectErrorStream(true).start();
+                try (java.io.BufferedReader r = new java.io.BufferedReader(new java.io.InputStreamReader(p.getInputStream()))) {
+                    String line;
+                    while ((line = r.readLine()) != null && out.length() < 400_000) out.append(line).append('\n');
+                }
+                p.waitFor();
+            } catch (Exception e) {
+                out.append("Could not read log: ").append(e.getMessage());
+            }
+            String text = out.length() == 0 ? "No Aurora keyguard log yet. Restart System UI, lock the phone, then try again." : out.toString();
+            runOnUiThread(() -> startActivity(Intent.createChooser(new Intent(Intent.ACTION_SEND).setType("text/plain")
+                    .putExtra(Intent.EXTRA_SUBJECT, "Aurora keyguard log").putExtra(Intent.EXTRA_TEXT, text), "Share log")));
+        }, "aurora-log").start();
     }
 
     private void aboutSheet() {

@@ -60,6 +60,8 @@ public final class AuroraWakeService extends AccessibilityService {
         AudioManager audio = getSystemService(AudioManager.class);
         int mode = audio == null ? AudioManager.MODE_NORMAL : audio.getMode();
         boolean inCall = mode == AudioManager.MODE_IN_CALL || mode == AudioManager.MODE_IN_COMMUNICATION || mode == AudioManager.MODE_RINGTONE;
+        // The System UI module already shows Aurora inside the real keyguard; never stack a second screen on top.
+        if (new au.steve.hyperlauncher.compat.aurora.system.ModuleState(this).systemLayerActive()) return;
         if (!policy.shouldLaunch(config.autoWakeEnabled(), power != null && power.isInteractive(),
                 keyguard != null && keyguard.isKeyguardLocked(), screenVisible, editorVisible, inCall)) return;
         try {

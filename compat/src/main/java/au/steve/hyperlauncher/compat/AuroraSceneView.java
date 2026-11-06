@@ -103,6 +103,9 @@ public final class AuroraSceneView extends View {
     }
 
     public void setVideoReady(boolean value) { videoReady = value; invalidate(); }
+    /** Inside Samsung's real keyguard (System UI module): Samsung draws its own unlock hint. */
+    private boolean systemKeyguard;
+    public void setSystemKeyguard(boolean value) { systemKeyguard = value; invalidate(); }
     public boolean isVideoReady() { return videoReady; }
 
     public void moveClock(float delta) {
@@ -416,7 +419,7 @@ public final class AuroraSceneView extends View {
             c.drawRoundRect(new RectF(width * 0.06f, boxTop, width * 0.94f, boxBot), 28, 28, paint);
         }
 
-        if (!preview) {
+        if (!preview && !systemKeyguard) {
             paint.reset();
             paint.setAntiAlias(true);
             paint.setColor(0x55FFFFFF);

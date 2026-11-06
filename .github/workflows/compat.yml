@@ -2,7 +2,7 @@ name: Build Aurora Depth preview
 on:
   push:
     branches: [main, feature/aurora-lockscreen]
-    paths: ['compat/**', '*.gradle', 'gradle.properties', '.github/workflows/compat.yml']
+    paths: ['compat/**', 'xposed-stub/**', '*.gradle', 'gradle.properties', '.github/workflows/compat.yml']
   pull_request:
   workflow_dispatch:
 permissions:

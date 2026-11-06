@@ -1,0 +1,4 @@
+// Compile-only signatures of the classic Xposed API (api 82). The real classes are provided at
+// runtime by LSPosed/Vector inside System UI; nothing from this module is packaged into the APK.
+plugins { id 'java-library' }
+java { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
